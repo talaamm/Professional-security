@@ -59,3 +59,59 @@
      blocked.
 
 ✻ Cooked for 12m 36s · done 8:12 PM
+
+---
+
+● Summary
+
+  What changed: Replaced the placeholder Home screen with the real Phase 3
+  employee dashboard, wired to two new secure Postgres functions for start/end
+  work.
+
+  Why a SQL file was needed: Your own schema (db-schema-V2.sql §20) deliberately
+  gives authenticated clients no INSERT/UPDATE on work_sessions —
+  starting/ending sessions must go through server-side functions, per your
+  testing_db_v1.md §14 plan ("That's the next backend task after testing the raw
+  schema"). I don't have direct DB execution access in this environment, so I
+  wrote the migration but you'll need to run it yourself:
+
+  You need to run this now: Open the Supabase SQL Editor and execute
+  db_files/phase3-session-functions.sql. It adds:
+  - start_work_session() — checks the caller's profile is active, blocks a
+    second active session (both via an app-level check and a DB-level ON
+    CONFLICT on the existing partial unique index, so double-taps/race
+    conditions can't create two active sessions), inserts with workplace_id =
+    NULL, start_verification = 'unknown' (no GPS yet — that's Phase 4).
+  - end_work_session() — finds the caller's active session and closes it, or
+    raises a clean error if none exists.
+
+  Both are SECURITY DEFINER, same pattern as your existing handle_new_user()
+  trigger, and only grant EXECUTE to authenticated.
+
+  Flutter changes:
+  - lib/models/work_session.dart — session model
+  - lib/services/work_session_service.dart — reads the active session via the
+    existing work_sessions_select_own RLS policy; start/end go through the two
+    RPCs above, with DB error messages surfaced directly to the UI
+  - lib/screens/home_screen.dart — rewritten dashboard: name, employee ID,
+    status (Working/Not Working with a live dot indicator), started-at time,
+    elapsed time (ticks every second while working), workplace row (shows "Not
+    tracked yet" until Phase 4 adds GPS), and a single Start/Finish Work button
+    that flips color and label based on state. Finishing asks for confirmation
+    first (matches your design's confirmation dialog). Pull-to-refresh re-syncs
+    status.
+
+  Scope kept tight, per phase discipline: no GPS, no workplace detection, no
+  history/reports, no admin views — all deferred to their own phases as your
+  project-phases.md lays out.
+
+  Verification: flutter analyze — 0 issues. I could not exercise the RPCs
+  end-to-end since I can't run SQL against your Supabase project.
+
+  Next steps for you:
+  1. Run db_files/phase3-session-functions.sql in the Supabase SQL editor.
+  2. Test the flow from your phase plan: start → finish, double-start (should be
+     rejected), finish with no active session (should be rejected), and restart
+     the app mid-session to confirm the active session reloads correctly.
+
+✻ Churned for 6m 27s · done 9:15 PM

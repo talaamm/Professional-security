@@ -11,12 +11,12 @@ Supabase + Database + Auth Foundation
         ↓
 TEST                                                        DONE
         ↓
-PHASE 2                                                     currently here
+PHASE 2                                                     DONE
 Flutter Foundation + Login
         ↓
-TEST
+TEST                                                        DONE
         ↓
-PHASE 3
+PHASE 3                                                     currently here
 Employee Start/End Session
         ↓
 TEST
