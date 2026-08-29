@@ -1,0 +1,61 @@
+  Summary
+
+  What changed: Connected the Flutter app to Supabase and built
+  Phase 2 auth: Splash/AuthGate → Login → Register → Home, with
+  logout and an admin-mediated "forgot password" screen. Employees
+  authenticate with their Employee ID, which is mapped under the
+  hood to a deterministic internal email
+  ({employee_id}@internal.app) since Supabase Auth requires an
+  email — this matches the pattern your own testing_db_v1.md
+  already validated. Session persistence, inactive-account
+  blocking, and the anti-self-admin rule are all in place.
+
+  Files changed:
+  - lib/main.dart — initializes Supabase, dark theme, AuthGate as
+    root
+  - lib/config/theme.dart — colors/theme from
+    UI_design/ui-description.md
+  - lib/config/env.dart (gitignored, placeholders) +
+    env.example.dart (template)
+  - lib/models/profile.dart, lib/services/auth_service.dart
+  - lib/widgets/auth_gate.dart, lib/widgets/error_banner.dart
+  - lib/screens/login_screen.dart, register_screen.dart,
+    forgot_password_screen.dart, home_screen.dart
+  - android/app/src/main/AndroidManifest.xml — added INTERNET
+    permission
+  - .gitignore — excludes lib/config/env.dart
+
+  Key design decisions worth your review:
+  1. Admin lock-out is enforced by the DB trigger, not client code
+     — handle_new_user() always inserts role = 'employee'
+     regardless of signup metadata, so there's no client path to
+     self-register as admin/super_admin. I didn't add redundant
+     client-side role logic since the DB is already authoritative.
+  2. Inactive-account check runs both at login and on every app
+     restart (in AuthGate), not just at sign-in — so a profile
+     deactivated while a device still holds a session gets signed
+     out next launch.
+  3. "Forgot password" is informational only (matches your own
+     mockup: "contact your system administrator"), not a real email
+     flow — since @internal.app addresses can't receive mail.
+     Actual reset is an admin action for Phase 7.
+  4. Skipped the mockup's device-registration and "Remember me"
+     screens — not requested for this phase and no backend behavior
+     to attach to "Remember me" (Supabase always persists sessions
+     the same way).
+
+  Verification: flutter pub get and flutter analyze — 0 issues. I
+  could not run the app end-to-end since lib/config/env.dart has
+  placeholder credentials.
+
+  Next step — you need to:
+  1. Fill in lib/config/env.dart with your real Supabase URL +
+     anon/publishable key.
+  2. In Supabase dashboard → Authentication → Settings, disable
+     "Confirm email" (per your own testing notes) — otherwise
+     registration won't auto-sign-in.
+  3. Run the app and manually test: register → auto-login → logout
+     → login → deactivate a profile in the DB and confirm login is
+     blocked.
+
+✻ Cooked for 12m 36s · done 8:12 PM
