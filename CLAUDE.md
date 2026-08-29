@@ -4,7 +4,7 @@
 
 This is a full-stack work/project tracking application.
 
-The application features are listed in [Project Plan](./project_plan.md)
+The application features are listed in [Project atures](./requirements-and-architecture_V1.md)
 
 The application should be built incrementally. Do not implement future features unless explicitly requested. we will be working in phases, you can see what each phase has and what phase are we in from the file [Project Phases](./project-phases.md)
 
@@ -144,7 +144,7 @@ The database schema is already established.
 
 Before modifying the database:
 
-1. Inspect the current schema at [db schema](./db_files/db-schema-V2.sql).
+1. Inspect the current schema at [db schema](./db_files/db-schema-V2.sql) IT IS ALREADY BUILT ON Supabase, if you need the supabase info, ASK the user for them.
 2. Understand existing relationships.
 3. Preserve existing data compatibility.
 4. Only add/change tables or columns when necessary.

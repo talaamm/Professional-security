@@ -183,8 +183,6 @@ ADMIN
 EMPLOYEE
 ```
 
-However, V1 assumes all administrators have equal permissions.
-
 ---
 
 # 3. Complete Employee Flow
@@ -2247,37 +2245,8 @@ The recommended logical architecture is:
 
 ---
 
-# Technology Stack - To Be Finalized
-
-The architecture intentionally does not lock the project to a specific backend provider yet.
+# Technology Stack
 
 The main candidates are:
 
-### Option A
-
-**Flutter + Firebase**
-
-### Option B
-
 **Flutter + Supabase/PostgreSQL**
-
-### Option C
-
-**Flutter + Custom Backend + PostgreSQL**
-
-The final choice should be made after comparing:
-
-* Development time
-* Developer familiarity
-* Authentication requirements
-* GPS/business logic
-* Reporting complexity
-* Database requirements
-* Realtime admin dashboard requirements
-* Cost
-* Backup strategy
-* Long-term maintainability
-* Vendor lock-in
-* Deployment complexity
-
-The logical architecture above should remain valid regardless of which of these implementations is selected.

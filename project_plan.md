@@ -716,15 +716,10 @@ I'd use roles:
 ```text
 EMPLOYEE
 ADMIN
-```
-
-Potentially later:
-
-```text
 SUPER_ADMIN
 ```
 
-if the company wants someone who can create/delete admins.
+super admin is someone who can create/delete admins.
 
 ---
 
