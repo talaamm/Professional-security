@@ -1,36 +1,39 @@
 -- ============================================================
--- SECURITY WORKFORCE ATTENDANCE SYSTEM
--- V1 INITIAL DATABASE SCHEMA
+-- EMPLOYEE WORK HOURS APP
+-- V1 DATABASE SCHEMA
 -- PostgreSQL / Supabase
 -- ============================================================
 --
--- Core entities:
---   auth.users       -> Supabase-managed authentication
---   profiles         -> Employees / Administrators
+-- Tables:
+--   auth.users       -> Supabase authentication
+--   profiles         -> Employees and administrators
 --   devices          -> Registered employee devices
 --   workplaces       -> Approved work locations
---   work_sessions    -> Employee attendance sessions
---   audit_logs       -> Administrative/system audit trail
+--   work_sessions    -> Employee work sessions
+--   audit_logs       -> Important system/admin actions
 --
--- All timestamps are stored as TIMESTAMPTZ (UTC internally).
+-- Time:
+--   All timestamps are stored as TIMESTAMPTZ.
+--   PostgreSQL stores them consistently and the app/reporting
+--   layer can display them in the desired local timezone.
 -- ============================================================
 
 
 -- ============================================================
--- 0. EXTENSIONS
+-- 1. EXTENSIONS
 -- ============================================================
 
--- gen_random_uuid() is available through pgcrypto.
 create extension if not exists "pgcrypto";
 
 
 -- ============================================================
--- 1. ENUM TYPES
+-- 2. ENUMS
 -- ============================================================
 
 create type public.user_role as enum (
     'employee',
-    'admin'
+    'admin',
+    'super_admin'
 );
 
 create type public.user_status as enum (
@@ -67,27 +70,34 @@ create type public.verification_method as enum (
 create type public.session_source as enum (
     'employee',
     'admin',
+    'super_admin',
     'system'
 );
 
 
 -- ============================================================
--- 2. PROFILES
+-- 3. PROFILES
 -- ============================================================
 --
--- Extends Supabase's auth.users table.
+-- One profile = one employee/user.
 --
--- IMPORTANT:
+-- employee_id:
+--   Company's real employee ID.
+--
+-- auth_user_id:
+--   Supabase Auth UUID.
+--   Used ONLY to connect this profile to auth.users.
+--
 -- Passwords are NOT stored here.
--- Supabase Auth manages passwords and authentication.
 -- ============================================================
 
 create table public.profiles (
-    id uuid primary key
+
+    employee_id text primary key,
+
+    auth_user_id uuid not null unique
         references auth.users(id)
         on delete restrict,
-
-    employee_number text not null,
 
     full_name text not null,
 
@@ -101,13 +111,13 @@ create table public.profiles (
 
     deactivated_at timestamptz,
 
-    constraint profiles_employee_number_unique
-        unique (employee_number),
+    constraint profiles_employee_id_not_empty
+        check (length(trim(employee_id)) > 0),
 
     constraint profiles_full_name_not_empty
         check (length(trim(full_name)) > 0),
 
-    constraint profiles_deactivation_consistency
+    constraint profiles_status_dates
         check (
             (status = 'active' and deactivated_at is null)
             or
@@ -117,20 +127,27 @@ create table public.profiles (
 
 
 -- ============================================================
--- 3. DEVICES
+-- 4. DEVICES
 -- ============================================================
 --
--- Stores devices associated with users.
+-- Employees can have more than one device over time.
 --
--- A user may have multiple historical devices.
--- Normally only authorized active devices should be usable.
+-- Example:
+--
+-- Employee 00427
+--     iPhone  -> revoked
+--     Android -> active
+--
+-- Device identity is an additional security signal.
+-- It is NOT proof of physical presence by itself.
 -- ============================================================
 
 create table public.devices (
+
     id uuid primary key default gen_random_uuid(),
 
-    user_id uuid not null
-        references public.profiles(id)
+    employee_id text not null
+        references public.profiles(employee_id)
         on delete restrict,
 
     device_identifier text not null,
@@ -152,7 +169,7 @@ create table public.devices (
     constraint devices_identifier_not_empty
         check (length(trim(device_identifier)) > 0),
 
-    constraint devices_revocation_consistency
+    constraint devices_status_dates
         check (
             (status = 'active' and revoked_at is null)
             or
@@ -162,16 +179,20 @@ create table public.devices (
 
 
 -- ============================================================
--- 4. WORKPLACES
+-- 5. WORKPLACES
 -- ============================================================
 --
--- An approved location where employees may work.
+-- Represents an approved work location.
 --
--- latitude / longitude = center point
--- radius_meters = permitted area
+-- latitude + longitude:
+--   Center of the workplace.
+--
+-- radius_meters:
+--   Allowed GPS radius around the center.
 -- ============================================================
 
 create table public.workplaces (
+
     id uuid primary key default gen_random_uuid(),
 
     name text not null,
@@ -186,8 +207,8 @@ create table public.workplaces (
 
     status public.workplace_status not null default 'active',
 
-    created_by uuid not null
-        references public.profiles(id)
+    created_by text not null
+        references public.profiles(employee_id)
         on delete restrict,
 
     created_at timestamptz not null default now(),
@@ -200,10 +221,10 @@ create table public.workplaces (
         check (length(trim(name)) > 0),
 
     constraint workplaces_latitude_valid
-        check (latitude >= -90 and latitude <= 90),
+        check (latitude between -90 and 90),
 
     constraint workplaces_longitude_valid
-        check (longitude >= -180 and longitude <= 180),
+        check (longitude between -180 and 180),
 
     constraint workplaces_radius_positive
         check (radius_meters > 0),
@@ -211,7 +232,7 @@ create table public.workplaces (
     constraint workplaces_radius_reasonable
         check (radius_meters <= 10000),
 
-    constraint workplaces_deactivation_consistency
+    constraint workplaces_status_dates
         check (
             (status = 'active' and deactivated_at is null)
             or
@@ -221,71 +242,76 @@ create table public.workplaces (
 
 
 -- ============================================================
--- 5. WORK SESSIONS
+-- 6. WORK SESSIONS
 -- ============================================================
 --
--- One row = one employee work session.
---
--- A session may cross midnight.
+-- One row = one work session.
 --
 -- Example:
 --
--- started_at = 2026-09-03 23:00 UTC
--- ended_at   = 2026-09-04 03:00 UTC
+-- 2026-09-03 23:00
+--       ->
+-- 2026-09-04 03:00
 --
--- This naturally represents a 4-hour session.
+-- This is a valid 4-hour session.
+--
+-- ended_at = NULL means the employee is currently working.
 -- ============================================================
 
 create table public.work_sessions (
+
     id uuid primary key default gen_random_uuid(),
 
-    user_id uuid not null
-        references public.profiles(id)
+    employee_id text not null
+        references public.profiles(employee_id)
         on delete restrict,
 
     workplace_id uuid
         references public.workplaces(id)
         on delete restrict,
 
+    -- Start time
     started_at timestamptz not null,
 
+    -- End time
+    -- NULL = currently working
     ended_at timestamptz,
 
-    -- Start GPS information
+    -- GPS when starting
     start_latitude double precision,
-
     start_longitude double precision,
-
     start_accuracy double precision,
 
-    -- End GPS information
+    -- GPS when ending
     end_latitude double precision,
-
     end_longitude double precision,
-
     end_accuracy double precision,
 
-    -- How the start/end location was verified
+    -- How the start was verified
     start_verification public.verification_method
         not null default 'unknown',
 
+    -- How the end was verified
     end_verification public.verification_method
         not null default 'unknown',
 
-    -- Used when GPS cannot identify an approved workplace
+    -- Used when automatic workplace detection fails
     manual_location_name text,
 
-    -- Who/what created the attendance action
-    source public.session_source not null default 'employee',
+    -- Who/what created the session
+    source public.session_source
+        not null default 'employee',
 
+    -- Additional explanation
     notes text,
 
     created_at timestamptz not null default now(),
 
     updated_at timestamptz not null default now(),
 
+
     -- --------------------------------------------------------
-    -- Constraints
+    -- Validation
     -- --------------------------------------------------------
 
     constraint work_sessions_end_after_start
@@ -297,25 +323,25 @@ create table public.work_sessions (
     constraint work_sessions_start_latitude_valid
         check (
             start_latitude is null
-            or (start_latitude >= -90 and start_latitude <= 90)
+            or start_latitude between -90 and 90
         ),
 
     constraint work_sessions_start_longitude_valid
         check (
             start_longitude is null
-            or (start_longitude >= -180 and start_longitude <= 180)
+            or start_longitude between -180 and 180
         ),
 
     constraint work_sessions_end_latitude_valid
         check (
             end_latitude is null
-            or (end_latitude >= -90 and end_latitude <= 90)
+            or end_latitude between -90 and 90
         ),
 
     constraint work_sessions_end_longitude_valid
         check (
             end_longitude is null
-            or (end_longitude >= -180 and end_longitude <= 180)
+            or end_longitude between -180 and 180
         ),
 
     constraint work_sessions_start_accuracy_valid
@@ -330,39 +356,36 @@ create table public.work_sessions (
             or end_accuracy >= 0
         ),
 
-    constraint work_sessions_manual_location_not_empty
+    constraint work_sessions_manual_location_valid
         check (
             manual_location_name is null
             or length(trim(manual_location_name)) > 0
-        ),
-
-    -- If manually specifying a location, there must actually
-    -- be a manual location value.
-    constraint work_sessions_manual_verification_consistency
-        check (
-            start_verification <> 'manual'
-            or manual_location_name is not null
-            or workplace_id is not null
         )
 );
 
 
 -- ============================================================
--- 6. AUDIT LOGS
+-- 7. AUDIT LOGS
 -- ============================================================
 --
--- Records important actions performed by administrators/system.
+-- Records important actions.
 --
--- old_data and new_data use JSONB so we can preserve exactly
--- what changed without creating a separate audit table for
--- every entity.
+-- Examples:
+--
+-- Admin changed an employee's role.
+-- Admin edited a work session.
+-- Admin ended a session.
+-- Employee was deactivated.
+-- Workplace was created.
+-- Device was revoked.
 -- ============================================================
 
 create table public.audit_logs (
+
     id uuid primary key default gen_random_uuid(),
 
-    actor_user_id uuid not null
-        references public.profiles(id)
+    actor_employee_id text not null
+        references public.profiles(employee_id)
         on delete restrict,
 
     action text not null,
@@ -388,8 +411,9 @@ create table public.audit_logs (
 
 
 -- ============================================================
--- 7. INDEXES
+-- 8. INDEXES
 -- ============================================================
+
 
 -- ------------------------------------------------------------
 -- PROFILES
@@ -409,14 +433,11 @@ create index profiles_full_name_idx
 -- DEVICES
 -- ------------------------------------------------------------
 
-create index devices_user_id_idx
-    on public.devices(user_id);
+create index devices_employee_id_idx
+    on public.devices(employee_id);
 
 create index devices_status_idx
     on public.devices(status);
-
-create index devices_user_status_idx
-    on public.devices(user_id, status);
 
 
 -- ------------------------------------------------------------
@@ -429,16 +450,13 @@ create index workplaces_status_idx
 create index workplaces_type_idx
     on public.workplaces(type);
 
-create index workplaces_created_by_idx
-    on public.workplaces(created_by);
-
 
 -- ------------------------------------------------------------
 -- WORK SESSIONS
 -- ------------------------------------------------------------
 
-create index work_sessions_user_id_idx
-    on public.work_sessions(user_id);
+create index work_sessions_employee_id_idx
+    on public.work_sessions(employee_id);
 
 create index work_sessions_workplace_id_idx
     on public.work_sessions(workplace_id);
@@ -446,20 +464,16 @@ create index work_sessions_workplace_id_idx
 create index work_sessions_started_at_idx
     on public.work_sessions(started_at);
 
-create index work_sessions_user_started_idx
-    on public.work_sessions(user_id, started_at);
-
-create index work_sessions_active_idx
-    on public.work_sessions(user_id)
-    where ended_at is null;
+create index work_sessions_employee_started_idx
+    on public.work_sessions(employee_id, started_at);
 
 
 -- ------------------------------------------------------------
 -- AUDIT LOGS
 -- ------------------------------------------------------------
 
-create index audit_logs_actor_user_id_idx
-    on public.audit_logs(actor_user_id);
+create index audit_logs_actor_idx
+    on public.audit_logs(actor_employee_id);
 
 create index audit_logs_entity_idx
     on public.audit_logs(entity_type, entity_id);
@@ -467,45 +481,50 @@ create index audit_logs_entity_idx
 create index audit_logs_created_at_idx
     on public.audit_logs(created_at);
 
-create index audit_logs_action_idx
-    on public.audit_logs(action);
-
 
 -- ============================================================
--- 8. CRITICAL UNIQUE INDEX
+-- 9. ONE ACTIVE WORK SESSION PER EMPLOYEE
 -- ============================================================
 --
--- An employee can NEVER have two active sessions.
+-- IMPORTANT:
 --
--- An active session = ended_at IS NULL.
+-- This is NOT the user's login session.
 --
--- This is enforced by PostgreSQL itself.
+-- It means the employee can only be clocked into ONE work
+-- session at a time.
 --
--- Flutter MUST NOT be the only layer responsible for this.
+-- Example:
+--
+-- Employee 00427
+--
+-- 08:00 -> 12:00    finished
+-- 13:00 -> 17:00    finished
+-- 18:00 -> NULL      currently working
+--
+-- Another NULL session for 00427 is not allowed.
 -- ============================================================
 
-create unique index work_sessions_one_active_per_user
-    on public.work_sessions(user_id)
+create unique index work_sessions_one_active_per_employee
+    on public.work_sessions(employee_id)
     where ended_at is null;
 
 
 -- ============================================================
--- 9. DEVICE CONSTRAINT
+-- 10. ONE ACTIVE DEVICE OWNER
 -- ============================================================
 --
--- A device identifier should not be registered as an active
--- device for multiple users simultaneously.
+-- A device identifier can only belong to one active employee.
 --
--- Historical/revoked records may remain.
+-- Old/revoked device records remain for history.
 -- ============================================================
 
-create unique index devices_one_active_owner_per_identifier
+create unique index devices_one_active_owner
     on public.devices(device_identifier)
     where status = 'active';
 
 
 -- ============================================================
--- 10. UPDATED_AT FUNCTION
+-- 11. UPDATED_AT FUNCTION
 -- ============================================================
 
 create or replace function public.set_updated_at()
@@ -522,7 +541,7 @@ $$;
 
 
 -- ============================================================
--- 11. UPDATED_AT TRIGGERS
+-- 12. UPDATED_AT TRIGGERS
 -- ============================================================
 
 create trigger profiles_set_updated_at
@@ -544,29 +563,25 @@ execute function public.set_updated_at();
 
 
 -- ============================================================
--- 12. PROFILE CREATION FUNCTION
+-- 13. NEW SUPABASE USER → PROFILE
 -- ============================================================
 --
--- Automatically creates a profile whenever a new Supabase
--- Auth user is created.
+-- When a Supabase Auth account is created, create the matching
+-- profile.
 --
--- NOTE:
--- The application/admin onboarding flow should provide:
+-- The employee ID and name are expected in user metadata.
 --
---   employee_number
---   full_name
---   role
---
--- through user metadata.
---
--- Example metadata:
+-- Example:
 --
 -- {
---   "employee_number": "EMP-1001",
---   "full_name": "Tala Abu Alamm",
---   "role": "employee"
+--   "employee_id": "00427",
+--   "full_name": "Tala Abu Alamm"
 -- }
 --
+-- IMPORTANT:
+-- Admin/super_admin creation should eventually be controlled
+-- through a secure admin function instead of allowing clients
+-- to freely choose their role.
 -- ============================================================
 
 create or replace function public.handle_new_user()
@@ -575,47 +590,32 @@ language plpgsql
 security definer
 set search_path = public
 as $$
-declare
-    requested_role public.user_role;
 begin
 
-    requested_role :=
-        case
-            when new.raw_user_meta_data->>'role' = 'admin'
-                then 'admin'::public.user_role
-            else
-                'employee'::public.user_role
-        end;
-
     insert into public.profiles (
-        id,
-        employee_number,
+        employee_id,
+        auth_user_id,
         full_name,
         role
     )
     values (
+        new.raw_user_meta_data->>'employee_id',
         new.id,
-
-        coalesce(
-            new.raw_user_meta_data->>'employee_number',
-            'PENDING-' || substr(new.id::text, 1, 8)
-        ),
-
         coalesce(
             new.raw_user_meta_data->>'full_name',
             'Unnamed User'
         ),
-
-        requested_role
+        'employee'
     );
 
     return new;
+
 end;
 $$;
 
 
 -- ============================================================
--- 13. AUTH USER → PROFILE TRIGGER
+-- 14. AUTH → PROFILE TRIGGER
 -- ============================================================
 
 create trigger on_auth_user_created
@@ -625,11 +625,12 @@ execute function public.handle_new_user();
 
 
 -- ============================================================
--- 14. HELPER FUNCTIONS FOR AUTHORIZATION
+-- 15. AUTHORIZATION HELPERS
 -- ============================================================
 
 -- ------------------------------------------------------------
--- Check whether current user is an active administrator.
+-- Is the currently authenticated user an admin?
+-- Includes super_admin.
 -- ------------------------------------------------------------
 
 create or replace function public.is_admin()
@@ -642,15 +643,36 @@ as $$
     select exists (
         select 1
         from public.profiles
-        where id = auth.uid()
-          and role = 'admin'
+        where auth_user_id = auth.uid()
           and status = 'active'
+          and role in ('admin', 'super_admin')
     );
 $$;
 
 
 -- ------------------------------------------------------------
--- Check whether current user is active.
+-- Is the currently authenticated user a super admin?
+-- ------------------------------------------------------------
+
+create or replace function public.is_super_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+    select exists (
+        select 1
+        from public.profiles
+        where auth_user_id = auth.uid()
+          and status = 'active'
+          and role = 'super_admin'
+    );
+$$;
+
+
+-- ------------------------------------------------------------
+-- Is the currently authenticated user active?
 -- ------------------------------------------------------------
 
 create or replace function public.is_active_user()
@@ -663,48 +685,43 @@ as $$
     select exists (
         select 1
         from public.profiles
-        where id = auth.uid()
+        where auth_user_id = auth.uid()
           and status = 'active'
     );
 $$;
 
 
 -- ============================================================
--- 15. ENABLE ROW LEVEL SECURITY
+-- 16. ROW LEVEL SECURITY
 -- ============================================================
 
-alter table public.profiles
-enable row level security;
+alter table public.profiles enable row level security;
 
-alter table public.devices
-enable row level security;
+alter table public.devices enable row level security;
 
-alter table public.workplaces
-enable row level security;
+alter table public.workplaces enable row level security;
 
-alter table public.work_sessions
-enable row level security;
+alter table public.work_sessions enable row level security;
 
-alter table public.audit_logs
-enable row level security;
+alter table public.audit_logs enable row level security;
 
 
 -- ============================================================
--- 16. PROFILES RLS
+-- 17. PROFILE POLICIES
 -- ============================================================
 
--- Users may read their own profile.
+-- Users can see their own profile.
 create policy profiles_select_own
 on public.profiles
 for select
 to authenticated
 using (
-    id = auth.uid()
+    auth_user_id = auth.uid()
 );
 
 
--- Admins may read all profiles.
-create policy profiles_admin_select
+-- Admins can see all profiles.
+create policy profiles_select_admin
 on public.profiles
 for select
 to authenticated
@@ -713,17 +730,11 @@ using (
 );
 
 
--- Admins may create/update profiles.
-create policy profiles_admin_insert
-on public.profiles
-for insert
-to authenticated
-with check (
-    public.is_admin()
-);
-
-
-create policy profiles_admin_update
+-- Admins can update employee information.
+--
+-- Role-management restrictions will be handled by secure
+-- functions later.
+create policy profiles_update_admin
 on public.profiles
 for update
 to authenticated
@@ -735,29 +746,31 @@ with check (
 );
 
 
--- IMPORTANT:
 -- No DELETE policy.
 --
--- Employees are soft-deleted/deactivated.
--- Profiles should not be physically deleted through the app.
+-- Employees are soft-deactivated instead.
 
 
 -- ============================================================
--- 17. DEVICES RLS
+-- 18. DEVICE POLICIES
 -- ============================================================
 
--- Employees can see their own devices.
+-- Employees can view their own devices.
 create policy devices_select_own
 on public.devices
 for select
 to authenticated
 using (
-    user_id = auth.uid()
+    employee_id = (
+        select employee_id
+        from public.profiles
+        where auth_user_id = auth.uid()
+    )
 );
 
 
--- Admins can see all devices.
-create policy devices_admin_select
+-- Admins can view all devices.
+create policy devices_select_admin
 on public.devices
 for select
 to authenticated
@@ -766,15 +779,8 @@ using (
 );
 
 
--- Device registration should eventually go through a secure
--- server-side function/Edge Function.
---
--- We intentionally DO NOT give arbitrary clients an INSERT
--- policy here yet.
-
-
 -- Admins can update/revoke devices.
-create policy devices_admin_update
+create policy devices_update_admin
 on public.devices
 for update
 to authenticated
@@ -787,15 +793,15 @@ with check (
 
 
 -- No DELETE policy.
--- Historical device records should remain.
+-- Device history should remain.
 
 
 -- ============================================================
--- 18. WORKPLACES RLS
+-- 19. WORKPLACE POLICIES
 -- ============================================================
 
--- Active users may view active workplaces.
-create policy workplaces_active_select
+-- Active users can view active workplaces.
+create policy workplaces_select_active
 on public.workplaces
 for select
 to authenticated
@@ -805,8 +811,8 @@ using (
 );
 
 
--- Admins can view all workplaces, including inactive ones.
-create policy workplaces_admin_select
+-- Admins can see all workplaces.
+create policy workplaces_select_admin
 on public.workplaces
 for select
 to authenticated
@@ -815,19 +821,23 @@ using (
 );
 
 
--- Only admins may create workplaces.
-create policy workplaces_admin_insert
+-- Admins can create workplaces.
+create policy workplaces_insert_admin
 on public.workplaces
 for insert
 to authenticated
 with check (
     public.is_admin()
-    and created_by = auth.uid()
+    and created_by = (
+        select employee_id
+        from public.profiles
+        where auth_user_id = auth.uid()
+    )
 );
 
 
--- Only admins may update workplaces.
-create policy workplaces_admin_update
+-- Admins can update workplaces.
+create policy workplaces_update_admin
 on public.workplaces
 for update
 to authenticated
@@ -844,21 +854,25 @@ with check (
 
 
 -- ============================================================
--- 19. WORK SESSIONS RLS
+-- 20. WORK SESSION POLICIES
 -- ============================================================
 
--- Employees can read their own sessions.
-create policy sessions_select_own
+-- Employees can view their own sessions.
+create policy work_sessions_select_own
 on public.work_sessions
 for select
 to authenticated
 using (
-    user_id = auth.uid()
+    employee_id = (
+        select employee_id
+        from public.profiles
+        where auth_user_id = auth.uid()
+    )
 );
 
 
--- Admins can read all sessions.
-create policy sessions_admin_select
+-- Admins can view all sessions.
+create policy work_sessions_select_admin
 on public.work_sessions
 for select
 to authenticated
@@ -868,27 +882,28 @@ using (
 
 
 -- IMPORTANT:
--- We intentionally DO NOT allow normal clients to freely
--- INSERT or UPDATE work_sessions.
 --
--- Start/end operations should go through controlled database
--- functions or Supabase Edge Functions.
+-- There is intentionally NO INSERT/UPDATE policy for normal
+-- authenticated clients here.
 --
--- This prevents a malicious client from doing:
+-- Starting/ending/editing sessions should go through secure
+-- database functions or Supabase Edge Functions.
 --
---   started_at = '3 hours ago'
---   user_id = someone else
---   workplace_id = fake location
+-- This prevents the Flutter client from simply submitting:
+--
+-- started_at = yesterday
+-- employee_id = another employee
+-- fake workplace
 --
 -- etc.
 
 
 -- ============================================================
--- 20. AUDIT LOG RLS
+-- 21. AUDIT LOG POLICIES
 -- ============================================================
 
--- Admins can read audit logs.
-create policy audit_logs_admin_select
+-- Only admins can read audit logs.
+create policy audit_logs_select_admin
 on public.audit_logs
 for select
 to authenticated
@@ -897,22 +912,13 @@ using (
 );
 
 
--- IMPORTANT:
 -- No normal INSERT policy.
 --
 -- Audit records should be generated server-side.
--- This prevents users from creating fake audit records.
---
--- We will implement secure audit logging functions later.
 
 
 -- ============================================================
--- 21. PRIVILEGES
--- ============================================================
---
--- Explicitly restrict access to the public schema tables.
---
--- Supabase's API uses the authenticated/anon roles.
+-- 22. BASIC GRANTS
 -- ============================================================
 
 revoke all on public.profiles from anon;
@@ -926,42 +932,12 @@ grant select on public.profiles to authenticated;
 grant select on public.devices to authenticated;
 grant select on public.workplaces to authenticated;
 grant select on public.work_sessions to authenticated;
+
+
+-- Audit logs are read through RLS.
 grant select on public.audit_logs to authenticated;
 
 
--- Admin/controlled modifications will be handled by
--- RLS + secure functions rather than unrestricted table access.
-
-
 -- ============================================================
--- 22. COMMENTS
--- ============================================================
-
-comment on table public.profiles is
-'Application-level employee/admin profiles extending Supabase auth.users.';
-
-comment on table public.devices is
-'Registered employee devices used as an additional attendance security signal.';
-
-comment on table public.workplaces is
-'Approved geographic locations where employees may work.';
-
-comment on table public.work_sessions is
-'Employee work attendance sessions. Timestamps are stored in UTC.';
-
-comment on table public.audit_logs is
-'Immutable-style audit history of important administrative/system actions.';
-
-comment on column public.work_sessions.started_at is
-'Official server-generated UTC start timestamp.';
-
-comment on column public.work_sessions.ended_at is
-'Official server-generated UTC end timestamp.';
-
-comment on column public.work_sessions.manual_location_name is
-'Human-entered location when automatic workplace detection is unavailable.';
-
-
--- ============================================================
--- END OF V1 INITIAL SCHEMA
+-- END OF V1 SCHEMA
 -- ============================================================
