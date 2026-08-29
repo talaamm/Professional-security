@@ -192,7 +192,8 @@ User will no longer have access to the project
 ```
 
 ---
-# 4. make sure the user exists:
+
+# 4. make sure the user exists
 
 ```sql
 select *
@@ -366,7 +367,9 @@ This is exactly what we want.
 The database is protecting us even if the Flutter application has a bug.
 
 ---
+
 # TO BE TESTED LATER
+
 ---
 ---
 ---
