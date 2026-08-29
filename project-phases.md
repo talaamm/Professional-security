@@ -16,12 +16,12 @@ Flutter Foundation + Login
         ↓
 TEST                                                        DONE
         ↓
-PHASE 3                                                     currently here
+PHASE 3                                                     DONE
 Employee Start/End Session
         ↓
-TEST
+TEST                                                        DONE
         ↓
-PHASE 4
+PHASE 4                                                     currently here
 GPS + Workplace Detection
         ↓
 TEST

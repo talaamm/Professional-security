@@ -115,3 +115,72 @@
      the app mid-session to confirm the active session reloads correctly.
 
 ✻ Churned for 6m 27s · done 9:15 PM
+
+---
+
+● Summary
+
+  What changed: Implemented the GPS + workplace-detection step of the Start Work
+  flow. Pressing "Start Work" now pushes a dedicated StartWorkScreen that:
+  checks/requests location permission → gets current GPS position → asks the
+  backend for nearby active workplaces → lets the employee confirm a detected
+  workplace (or pick one if several are in range) → or falls back to a
+  manual-entry form if none are found.
+
+  Backend (needs you to run this): db_files/phase4-workplace-detection.sql in the
+  Supabase SQL editor. It adds:
+  - find_nearby_workplaces(lat, lon) — read-only, returns active workplaces within
+    their own configured radius_meters, closest first (Haversine distance),
+    respecting the existing workplaces_select_active RLS policy.
+  - start_work_session(...) — replaced to take latitude, longitude, accuracy, and
+    either a workplace_id or a manual_location_name. Critically, it does not trust
+    the client's workplace pick — it re-fetches that workplace and recomputes the
+    distance from the submitted coordinates itself; only if that check passes
+    does it mark the session verified. A tampered/faked workplace_id outside range
+    is rejected. If no workplace is given, it stores manual_location_name with
+    start_verification = 'manual' — visible today on the Home screen as "⚠ Manual
+    location - pending admin review" (actual admin approval UI is a later phase,
+    per your own plan).
+
+  Flutter changes:
+  - Added geolocator: ^14.0.3 (only realistic option for GPS + permission handling
+    in Flutter) + Android (ACCESS_FINE_LOCATION/ACCESS_COARSE_LOCATION) and iOS
+    (NSLocationWhenInUseUsageDescription) permission entries.
+  - lib/services/location_service.dart — wraps permission checks/requests and
+    getCurrentPosition(), with clear user-facing messages for "services off",
+    "denied", "denied forever".
+  - lib/models/workplace_match.dart, lib/services/work_session_service.dart —
+    findNearbyWorkplaces() and updated startWorkSession().
+  - lib/screens/start_work_screen.dart — the new flow (checking →
+    detected/multiple matches list → manual fallback → error/retry states).
+  - lib/models/work_session.dart + lib/screens/home_screen.dart — Home now shows
+    the real workplace name (or manual location) once working, and navigates to
+    StartWorkScreen instead of starting blind.
+
+  Design decisions worth flagging:
+  1. Match radius uses each workplace's own configured radius_meters (schema
+     default 100m), not a hardcoded 100m — matches your architecture doc's
+     documented algorithm.
+  2. If GPS itself fails entirely (permission denied, location services off), the
+     only option is "Try Again" — no manual fallback without coordinates at all,
+     since start_work_session requires lat/lon/accuracy. Manual entry is only
+     offered when GPS succeeds but no workplace matches, exactly as you described.
+  3. Added a "None of these? Enter manually" escape hatch even from the
+     multi-match list — small addition beyond your literal spec, cheap to include,
+     avoids trapping someone if all detected matches are wrong.
+
+  Verification: flutter analyze — 0 issues (also caught and fixed a real bug of my
+  own: the "Multiple workplaces nearby" heading was dead code that never actually
+  displayed). I could not test the live GPS/DB flow — no emulator/device or
+  Supabase execution access here.
+
+  Next steps for you:
+  1. Run db_files/phase4-workplace-detection.sql.
+  2. Add at least one test workplace row near your test device's location (or use
+     a mock-location tool) so you can exercise the "detected" and "multiple
+     nearby" paths, then move somewhere far to test the manual-entry path.
+  3. Test on a real device/emulator: permission prompt, deny → retry, single
+     match, multiple matches, no match → manual submit → check
+     work_sessions.start_verification in Supabase.
+
+✻ Cogitated for 14m 50s · done 10:22 PM

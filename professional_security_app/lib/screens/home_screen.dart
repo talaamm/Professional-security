@@ -8,10 +8,11 @@ import '../models/work_session.dart';
 import '../services/auth_service.dart';
 import '../services/work_session_service.dart';
 import '../widgets/error_banner.dart';
+import 'start_work_screen.dart';
 
 /// Employee home dashboard: current work status and the start/finish work
-/// action. Workplace detection (GPS) is added in Phase 4 - for now sessions
-/// are created without a workplace.
+/// action. Starting work hands off to StartWorkScreen (GPS + workplace
+/// detection); finishing happens right here after a confirmation dialog.
 class HomeScreen extends StatefulWidget {
   final Profile profile;
 
@@ -71,23 +72,12 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _startWork() async {
-    setState(() {
-      _isSubmitting = true;
-      _error = null;
-    });
-
-    try {
-      final session = await _sessionService.startWorkSession();
-      if (!mounted) return;
-      setState(() => _activeSession = session);
-      _configureTicker();
-    } on WorkSessionException catch (e) {
-      setState(() => _error = e.message);
-    } catch (_) {
-      setState(() => _error = 'Something went wrong. Please try again.');
-    } finally {
-      if (mounted) setState(() => _isSubmitting = false);
+  Future<void> _goToStartWork() async {
+    final started = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => const StartWorkScreen()),
+    );
+    if (started == true) {
+      await _loadActiveSession();
     }
   }
 
@@ -213,7 +203,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ElevatedButton(
                     onPressed: _isSubmitting
                         ? null
-                        : (isWorking ? _confirmFinishWork : _startWork),
+                        : (isWorking ? _confirmFinishWork : _goToStartWork),
                     style: isWorking
                         ? ElevatedButton.styleFrom(
                             backgroundColor: AppColors.error,
@@ -316,7 +306,14 @@ class _StatusCard extends StatelessWidget {
             const SizedBox(height: 16),
             _InfoRow(label: 'ELAPSED', value: formatElapsed(session!.startedAt)),
             const SizedBox(height: 16),
-            const _InfoRow(label: 'WORKPLACE', value: 'Not tracked yet'),
+            _InfoRow(label: 'WORKPLACE', value: session!.workplaceLabel),
+            if (session!.isPendingReview) ...[
+              const SizedBox(height: 6),
+              const Text(
+                '⚠ Manual location - pending admin review',
+                style: TextStyle(color: AppColors.secondary, fontSize: 12),
+              ),
+            ],
           ],
         ],
       ),
