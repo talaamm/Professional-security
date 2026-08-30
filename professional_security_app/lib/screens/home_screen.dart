@@ -6,6 +6,7 @@ import '../config/theme.dart';
 import '../models/profile.dart';
 import '../models/work_session.dart';
 import '../services/auth_service.dart';
+import '../services/issue_service.dart';
 import '../services/work_session_service.dart';
 import '../widgets/error_banner.dart';
 import 'end_work_screen.dart';
@@ -27,6 +28,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final _sessionService = WorkSessionService();
   final _authService = AuthService();
+  final _issueService = IssueService();
 
   WorkSession? _activeSession;
   bool _isLoading = true;
@@ -137,6 +139,71 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Future<void> _reportIssue() async {
+    final controller = TextEditingController();
+    final message = await showDialog<String>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: AppColors.surface,
+          title: const Text(
+            'Having an issue?',
+            style: TextStyle(color: AppColors.textPrimary),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Briefly describe the issue. An admin will follow up.',
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: controller,
+                maxLength: 50,
+                maxLines: 2,
+                style: const TextStyle(color: AppColors.textPrimary),
+                decoration: const InputDecoration(hintText: 'e.g. My badge is not scanning'),
+                onChanged: (_) => setDialogState(() {}),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: controller.text.trim().isEmpty
+                  ? null
+                  : () => Navigator.of(context).pop(controller.text.trim()),
+              child: const Text('Send'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (message == null || message.isEmpty) return;
+    if (!mounted) return;
+
+    try {
+      await _issueService.reportIssue(message);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Sent to the admins.')));
+    } on IssueServiceException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Something went wrong. Please try again.')),
+      );
+    }
+  }
+
   String _formatTime(DateTime dt) {
     final hour = dt.hour.toString().padLeft(2, '0');
     final minute = dt.minute.toString().padLeft(2, '0');
@@ -210,6 +277,12 @@ class _HomeScreenState extends State<HomeScreen> {
                           )
                         : null,
                     child: Text(isWorking ? 'FINISH WORK' : 'START WORK'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextButton.icon(
+                    onPressed: _reportIssue,
+                    icon: const Icon(Icons.help_outline, size: 18),
+                    label: const Text('Having Issue? Tell the admin'),
                   ),
                 ],
               ),

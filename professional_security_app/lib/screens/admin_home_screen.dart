@@ -6,6 +6,7 @@ import '../models/profile.dart';
 import '../models/unverified_session.dart';
 import '../services/admin_service.dart';
 import '../services/auth_service.dart';
+import '../widgets/dashboard_section.dart';
 import '../widgets/error_banner.dart';
 import 'session_review_screen.dart';
 
@@ -175,7 +176,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                     ErrorBanner(message: _error!),
                     const SizedBox(height: 16),
                   ],
-                  _DashboardSection(
+                  DashboardSection(
                     title: 'Currently Working',
                     count: _active.length,
                     emptyText: 'No employees are currently working.',
@@ -187,7 +188,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                         .toList(),
                   ),
                   const SizedBox(height: 16),
-                  _DashboardSection(
+                  DashboardSection(
                     title: 'Unverified Sessions',
                     count: _unverified.length,
                     emptyText: 'No sessions are waiting for review.',
@@ -200,52 +201,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                   ),
                 ],
               ),
-      ),
-    );
-  }
-}
-
-class _DashboardSection extends StatelessWidget {
-  final String title;
-  final int count;
-  final String emptyText;
-  final List<Widget> children;
-
-  const _DashboardSection({
-    required this.title,
-    required this.count,
-    required this.emptyText,
-    required this.children,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Theme(
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          initiallyExpanded: true,
-          iconColor: AppColors.primary,
-          collapsedIconColor: AppColors.textSecondary,
-          title: Text(
-            '$title  ($count)',
-            style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
-          ),
-          children: [
-            if (children.isEmpty)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                child: Text(emptyText, style: const TextStyle(color: AppColors.textSecondary)),
-              )
-            else
-              ...children,
-          ],
-        ),
       ),
     );
   }

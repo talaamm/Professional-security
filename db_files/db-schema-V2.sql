@@ -966,3 +966,92 @@ grant select on public.audit_logs to authenticated;
 -- ============================================================
 -- END OF V1 SCHEMA
 -- ============================================================
+
+
+-- ============================================================
+-- ADDENDUM — ISSUE REPORTS (added post-V1)
+-- ============================================================
+--
+-- Executable migration: db_files/phase7-issue-reports.sql.
+-- Documented here, unnumbered, so the section numbers above stay
+-- stable as a reference to what actually shipped in V1.
+--
+-- An employee can send a short (<=50 char) note to admins ("Having
+-- an issue? Tell the admin"); admins see open ones on the Employees
+-- tab and mark them resolved. No client INSERT/UPDATE policy, same
+-- convention as work_sessions - writes go through report_issue()
+-- and admin_resolve_issue().
+-- ============================================================
+
+create type public.issue_status as enum (
+    'open',
+    'resolved'
+);
+
+create table public.issue_reports (
+
+    id uuid primary key default gen_random_uuid(),
+
+    employee_id text not null
+        references public.profiles(employee_id)
+        on delete restrict,
+
+    message text not null,
+
+    status public.issue_status not null default 'open',
+
+    created_at timestamptz not null default now(),
+
+    resolved_at timestamptz,
+
+    resolved_by text
+        references public.profiles(employee_id)
+        on delete restrict,
+
+    constraint issue_reports_message_length
+        check (
+            length(trim(message)) > 0
+            and length(message) <= 50
+        ),
+
+    constraint issue_reports_resolved_dates
+        check (
+            (status = 'open' and resolved_at is null and resolved_by is null)
+            or
+            (status = 'resolved' and resolved_at is not null and resolved_by is not null)
+        )
+);
+
+alter table public.issue_reports enable row level security;
+
+-- Employees can see their own reports.
+create policy issue_reports_select_own
+on public.issue_reports
+for select
+to authenticated
+using (
+    employee_id = (
+        select employee_id
+        from public.profiles
+        where auth_user_id = auth.uid()
+    )
+);
+
+-- Admins can see all reports.
+create policy issue_reports_select_admin
+on public.issue_reports
+for select
+to authenticated
+using (
+    public.is_admin()
+);
+
+-- No INSERT/UPDATE policy for normal clients - see report_issue()
+-- and admin_resolve_issue() in db_files/phase7-issue-reports.sql.
+
+revoke all on public.issue_reports from anon;
+grant select on public.issue_reports to authenticated;
+
+-- ============================================================
+-- END ADDENDUM
+-- ============================================================

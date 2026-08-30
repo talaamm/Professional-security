@@ -3,16 +3,19 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../config/theme.dart';
+import '../models/issue_report.dart';
 import '../models/profile.dart';
 import '../services/admin_service.dart';
+import '../widgets/dashboard_section.dart';
 import '../widgets/error_banner.dart';
 import 'admin_employee_detail_screen.dart';
 
-/// Search for an employee by name or employee ID (case-insensitive,
-/// substring match - works for Arabic/Hebrew names the same as Latin
-/// ones). An ID search naturally returns just the one matching employee
-/// since employee_id is unique; a name search returns everyone whose
-/// name contains that text.
+/// Employees tab: open issue reports at the top (raised via the employee
+/// Home screen's "Having Issue? Tell the admin" button), then search for
+/// an employee by name or employee ID (case-insensitive, substring match -
+/// works for Arabic/Hebrew names the same as Latin ones). An ID search
+/// naturally returns just the one matching employee since employee_id is
+/// unique; a name search returns everyone whose name contains that text.
 class AdminEmployeesScreen extends StatefulWidget {
   const AdminEmployeesScreen({super.key});
 
@@ -26,15 +29,78 @@ class _AdminEmployeesScreenState extends State<AdminEmployeesScreen> {
   Timer? _debounce;
 
   List<Profile> _results = [];
-  bool _isLoading = false;
+  bool _isSearching = false;
   bool _hasSearched = false;
-  String? _error;
+  String? _searchError;
+
+  List<IssueReport> _issues = [];
+  bool _isLoadingIssues = true;
+  String? _issuesError;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadIssues();
+  }
 
   @override
   void dispose() {
     _debounce?.cancel();
     _searchController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadIssues() async {
+    setState(() {
+      _isLoadingIssues = true;
+      _issuesError = null;
+    });
+
+    try {
+      final issues = await _adminService.fetchOpenIssues();
+      if (!mounted) return;
+      setState(() => _issues = issues);
+    } on AdminServiceException catch (e) {
+      if (!mounted) return;
+      setState(() => _issuesError = e.message);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _issuesError = 'Could not load issue reports.');
+    } finally {
+      if (mounted) setState(() => _isLoadingIssues = false);
+    }
+  }
+
+  Future<void> _resolveIssue(IssueReport issue) async {
+    try {
+      await _adminService.resolveIssue(issue.issueId);
+      if (!mounted) return;
+      setState(() => _issues.removeWhere((i) => i.issueId == issue.issueId));
+    } on AdminServiceException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Something went wrong. Please try again.')),
+      );
+    }
+  }
+
+  Future<void> _openEmployeeById(String employeeId) async {
+    try {
+      final employee = await _adminService.fetchEmployeeByEmployeeId(employeeId);
+      if (!mounted) return;
+      if (employee == null) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Employee not found.')));
+        return;
+      }
+      await _openEmployee(employee);
+    } on AdminServiceException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
   }
 
   void _onQueryChanged(String query) {
@@ -48,15 +114,15 @@ class _AdminEmployeesScreenState extends State<AdminEmployeesScreen> {
       setState(() {
         _results = [];
         _hasSearched = false;
-        _error = null;
+        _searchError = null;
       });
       return;
     }
 
     setState(() {
-      _isLoading = true;
+      _isSearching = true;
       _hasSearched = true;
-      _error = null;
+      _searchError = null;
     });
 
     try {
@@ -65,12 +131,12 @@ class _AdminEmployeesScreenState extends State<AdminEmployeesScreen> {
       setState(() => _results = results);
     } on AdminServiceException catch (e) {
       if (!mounted) return;
-      setState(() => _error = e.message);
+      setState(() => _searchError = e.message);
     } catch (_) {
       if (!mounted) return;
-      setState(() => _error = 'Something went wrong. Please try again.');
+      setState(() => _searchError = 'Something went wrong. Please try again.');
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) setState(() => _isSearching = false);
     }
   }
 
@@ -88,56 +154,116 @@ class _AdminEmployeesScreenState extends State<AdminEmployeesScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text('Employees')),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            TextField(
-              controller: _searchController,
-              style: const TextStyle(color: AppColors.textPrimary),
-              decoration: const InputDecoration(
-                hintText: 'Search by name or employee ID',
-                prefixIcon: Icon(Icons.search, color: AppColors.textSecondary),
+      body: RefreshIndicator(
+        color: AppColors.primary,
+        backgroundColor: AppColors.surface,
+        onRefresh: _loadIssues,
+        child: _isLoadingIssues
+            ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+            : ListView(
+                padding: const EdgeInsets.all(24),
+                children: [
+                  if (_issuesError != null) ...[
+                    ErrorBanner(message: _issuesError!),
+                    const SizedBox(height: 16),
+                  ],
+                  DashboardSection(
+                    title: 'Reported Issues',
+                    count: _issues.length,
+                    emptyText: 'No open issue reports.',
+                    children: _issues
+                        .map((issue) => _IssueTile(
+                              issue: issue,
+                              onTap: () => _openEmployeeById(issue.employeeId),
+                              onDone: () => _resolveIssue(issue),
+                            ))
+                        .toList(),
+                  ),
+                  const SizedBox(height: 24),
+                  TextField(
+                    controller: _searchController,
+                    style: const TextStyle(color: AppColors.textPrimary),
+                    decoration: const InputDecoration(
+                      hintText: 'Search by name or employee ID',
+                      prefixIcon: Icon(Icons.search, color: AppColors.textSecondary),
+                    ),
+                    onChanged: _onQueryChanged,
+                  ),
+                  const SizedBox(height: 16),
+                  if (_searchError != null) ...[
+                    ErrorBanner(message: _searchError!),
+                    const SizedBox(height: 16),
+                  ],
+                  _buildResults(),
+                ],
               ),
-              onChanged: _onQueryChanged,
-            ),
-            const SizedBox(height: 16),
-            if (_error != null) ...[
-              ErrorBanner(message: _error!),
-              const SizedBox(height: 16),
-            ],
-            Expanded(child: _buildResults()),
-          ],
-        ),
       ),
     );
   }
 
   Widget _buildResults() {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+    if (_isSearching) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 24),
+        child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      );
     }
     if (!_hasSearched) {
-      return const Center(
-        child: Text(
-          'Search for an employee to see their details.',
-          style: TextStyle(color: AppColors.textSecondary),
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 24),
+        child: Center(
+          child: Text(
+            'Search for an employee to see their details.',
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
         ),
       );
     }
     if (_results.isEmpty) {
-      return const Center(
-        child: Text('No matching employees.', style: TextStyle(color: AppColors.textSecondary)),
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 24),
+        child: Center(
+          child: Text('No matching employees.', style: TextStyle(color: AppColors.textSecondary)),
+        ),
       );
     }
-    return ListView.separated(
-      itemCount: _results.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final employee = _results[index];
-        return _EmployeeCard(employee: employee, onTap: () => _openEmployee(employee));
-      },
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final employee in _results) ...[
+          _EmployeeCard(employee: employee, onTap: () => _openEmployee(employee)),
+          const SizedBox(height: 12),
+        ],
+      ],
+    );
+  }
+}
+
+class _IssueTile extends StatelessWidget {
+  final IssueReport issue;
+  final VoidCallback onTap;
+  final VoidCallback onDone;
+
+  const _IssueTile({required this.issue, required this.onTap, required this.onDone});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      onTap: onTap,
+      title: Text(
+        '${issue.employeeName}  ·  ${issue.employeeId}',
+        style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+      ),
+      subtitle: Text(issue.message, style: const TextStyle(color: AppColors.textSecondary)),
+      trailing: OutlinedButton(
+        // Overrides the app theme's default minimumSize: Size.fromHeight(52),
+        // which sets width to double.infinity for full-width buttons - fatal
+        // here, since ListTile.trailing needs to measure a finite intrinsic
+        // width for this widget.
+        style: OutlinedButton.styleFrom(minimumSize: const Size(64, 36)),
+        onPressed: onDone,
+        child: const Text('Done'),
+      ),
     );
   }
 }

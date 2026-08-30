@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/active_employee_session.dart';
+import '../models/issue_report.dart';
 import '../models/profile.dart';
 import '../models/unverified_session.dart';
 import '../models/work_session.dart';
@@ -198,6 +199,43 @@ class AdminService {
         'p_session_id': sessionId,
         'p_reason': reason,
       });
+    } on PostgrestException catch (e) {
+      throw AdminServiceException(e.message);
+    }
+  }
+
+  /// Open issue reports for the Employees tab, oldest first.
+  Future<List<IssueReport>> fetchOpenIssues() async {
+    try {
+      final data = await _client.rpc('admin_list_open_issues');
+      return (data as List)
+          .map((row) => IssueReport.fromMap(row as Map<String, dynamic>))
+          .toList();
+    } on PostgrestException catch (e) {
+      throw AdminServiceException(e.message);
+    }
+  }
+
+  Future<void> resolveIssue(String issueId) async {
+    try {
+      await _client.rpc('admin_resolve_issue', params: {'p_issue_id': issueId});
+    } on PostgrestException catch (e) {
+      throw AdminServiceException(e.message);
+    }
+  }
+
+  /// One employee's profile by employee_id - used to open the same detail
+  /// screen from an issue report card that searching-then-tapping would.
+  /// Relies on the existing profiles_select_admin RLS policy.
+  Future<Profile?> fetchEmployeeByEmployeeId(String employeeId) async {
+    try {
+      final data = await _client
+          .from('profiles')
+          .select()
+          .eq('employee_id', employeeId)
+          .maybeSingle();
+      if (data == null) return null;
+      return Profile.fromMap(data);
     } on PostgrestException catch (e) {
       throw AdminServiceException(e.message);
     }

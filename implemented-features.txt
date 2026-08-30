@@ -677,3 +677,104 @@
      row's old_data captures the full session that was removed.
 
 ---
+
+● Summary
+
+  What changed: New feature - employees can flag an issue to admins from
+  Home; admins see and resolve them from the Employees tab.
+
+  Backend (needs you to run this): db_files/phase7-issue-reports.sql. Adds:
+  - A new issue_reports table + issue_status enum ('open'/'resolved'), RLS
+    (employees see their own reports, admins see all), no client
+    INSERT/UPDATE policy - same convention as work_sessions.
+  - report_issue(message) - employee_id resolved from auth.uid(), never
+    from the client; enforces the 50-char limit server-side too (never
+    trust frontend validation alone).
+  - admin_list_open_issues() - SECURITY DEFINER with its own is_admin()
+    check, oldest-first, same convention as admin_unverified_sessions().
+  - admin_resolve_issue(issue_id) - marks one done and writes an
+    audit_logs row, same as every other admin action here.
+  Also documented the new table in db_files/db-schema-V2.sql as an
+  unnumbered addendum (so the original V1 section numbers stay a stable
+  reference to what shipped in V1 - the executable migration is the file
+  above).
+
+  Flutter changes:
+  - lib/screens/home_screen.dart - "Having Issue? Tell the admin" button
+    below Start/Finish Work. Opens a dialog with a 50-char-limited field
+    (live counter via TextField's own maxLength) - works the same for
+    Arabic/Hebrew text as any other text field in this app, no special
+    handling needed.
+  - lib/screens/admin_employees_screen.dart - a "Reported Issues" card at
+    the top of the Employees tab (above search), each row showing the
+    employee's name/ID and their message. Tapping a row opens that
+    employee's detail screen (fetches the full profile by employee_id,
+    same screen you'd reach by searching and tapping their name); the
+    separate "Done" button resolves it without navigating away.
+  - lib/widgets/dashboard_section.dart (new) - extracted the expandable
+    card widget that used to be private to admin_home_screen.dart, so
+    Employees can reuse the exact same "Currently Working"/"Unverified
+    Sessions"-style section instead of a second hand-rolled copy.
+  - lib/services/issue_service.dart (new, employee-side),
+    lib/services/admin_service.dart (added fetchOpenIssues, resolveIssue,
+    fetchEmployeeByEmployeeId), lib/models/issue_report.dart (new).
+
+  Verification: flutter analyze - 0 issues. Could not exercise the live
+  Supabase flow (no execution access, no device/emulator here).
+
+  Next steps for you:
+  1. Run db_files/phase7-issue-reports.sql in the Supabase SQL editor.
+  2. As an employee, send an issue report (try it in Arabic or Hebrew too)
+     and confirm it's capped at 50 characters.
+  3. As an admin, open the Employees tab and confirm the report appears at
+     the top with the right name/ID/message; tap the card to confirm it
+     opens that employee's detail screen; tap Done and confirm it
+     disappears and audit_logs gets a RESOLVE_ISSUE row.
+
+---
+
+● Summary
+
+  What changed: Fixed the black-screen crash on the Employees tab (pure
+  Flutter bug, no SQL/data involved this time).
+
+  Bug found and fixed: the app's theme (lib/config/theme.dart) sets every
+  OutlinedButton's default minimumSize to Size.fromHeight(52) - that's
+  Size(double.infinity, 52), meant for the full-width buttons this app
+  uses elsewhere (LOGIN, START WORK, etc.), where a Column gives them a
+  bounded width regardless of what they "want". The new "Done" button on
+  each issue-report row was also an OutlinedButton, but placed as a
+  ListTile's trailing widget - and ListTile needs to measure trailing's
+  actual (finite) intrinsic width to lay out the row. Asking a button
+  whose minimum width is infinity for that produced exactly what you saw:
+  a wall of "RenderBox was not laid out" / "Cannot hit test a render box
+  with no size" errors, repeating every frame, rendering nothing (black
+  screen). I checked every other trailing: in the app (both in
+  admin_home_screen.dart) - they're a plain Icon and an IconButton,
+  neither restyled by the theme, so neither was ever at risk.
+
+  Fix: lib/screens/admin_employees_screen.dart's Done button now has its
+  own OutlinedButton.styleFrom(minimumSize: Size(64, 36)), a small fixed
+  size appropriate for a trailing slot, overriding the theme default just
+  for this one button.
+
+  While tracking this down I also tightened two things that were
+  theoretically fine but unproven on a real device, to remove any
+  remaining doubt: the Employees tab's loading state now fully swaps the
+  body between a spinner and the ListView (matching
+  admin_home_screen.dart's already-working pattern) instead of putting the
+  spinner inside the ListView's own children; and the search-results
+  Column now explicitly sets mainAxisSize: MainAxisSize.min.
+
+  Verification: flutter analyze - 0 issues. I could not reproduce the
+  crash myself (no device/emulator here) - this fix is based on reading
+  the exact assertion you hit (RenderBox.size's hasSize check, box.dart
+  line ~2251) back to the one real structural difference between this
+  screen and the otherwise-identical, already-working admin dashboard
+  screen.
+
+  Next step for you: reopen the Employees tab and confirm it loads
+  normally now, including with an open issue report showing its Done
+  button.
+
+---
