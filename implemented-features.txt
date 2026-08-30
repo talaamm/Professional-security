@@ -617,3 +617,63 @@
   4. Confirm the employee Profile page's new logout button works.
 
 ---
+
+● Summary
+
+  What changed: Fixed the History error (root cause found - a genuine SQL
+  bug) and the un-clickable Delete button (a genuine Flutter bug), then
+  added delete-session to the Unverified Sessions review screen.
+
+  Bug found and fixed - "column reference employee_id is ambiguous"
+  (db_files/fix-list-my-sessions-ambiguous-column.sql, run this): confirmed
+  the root cause. list_my_sessions_for_month() declares `employee_id text`
+  as one of its RETURNS TABLE columns - in PL/pgSQL, every RETURNS TABLE
+  column becomes an implicit variable in the function's own scope. The
+  line `select employee_id into v_employee_id from public.profiles where
+  auth_user_id = auth.uid();` was unqualified, so Postgres couldn't tell
+  whether `employee_id` meant that implicit variable or
+  profiles.employee_id, and correctly refused to guess. Fixed by
+  qualifying it as profiles.employee_id (everywhere else in the function
+  already uses table aliases, which is why only this one line broke). I
+  also checked every other function with RETURNS TABLE
+  (admin_active_sessions, admin_unverified_sessions) for the same pattern -
+  both already qualify every column reference, so they were never at risk.
+
+  Bug found and fixed - Delete button stayed disabled no matter what you
+  typed: in AdminSessionEditScreen's delete-confirmation dialog, the
+  button's onPressed was `reasonController.text.trim().isEmpty ? null :
+  ...`, but the dialog's builder is a plain function - nothing rebuilds it
+  when you type, so that check was frozen at whatever the field held the
+  instant the dialog opened (empty), forever. Fixed by extracting
+  lib/widgets/reason_dialog.dart - a reusable "confirm with a required
+  reason" dialog wrapped in a StatefulBuilder, so the field's onChanged can
+  actually trigger a rebuild and re-evaluate the button. Both
+  AdminSessionEditScreen and the new delete-from-review feature below now
+  share this one correct implementation instead of each hand-rolling the
+  same dialog (and risking the same bug again).
+
+  New feature - delete a session from the Unverified Sessions review
+  screen: lib/screens/session_review_screen.dart now has a "Delete
+  Session" action alongside "Verify Session" (same admin_delete_work_session
+  function and audit trail as the employee-detail screen's delete). Since
+  a screen can no longer just pop true/false, it now pops a
+  SessionReviewOutcome (verified/deleted/null-if-cancelled);
+  admin_home_screen.dart's _reviewSession() was updated to match and shows
+  the right snackbar for either outcome.
+
+  Verification: flutter analyze - 0 issues. Could not exercise the live
+  Supabase flow (no execution access, no device/emulator here) - in
+  particular I could not re-run the exact scenario you hit, since it
+  needed a live Postgres error message to diagnose in the first place.
+
+  Next steps for you:
+  1. Run db_files/fix-list-my-sessions-ambiguous-column.sql, then retry
+     the employee History tab - it should load normally now.
+  2. Retry deleting a session from the employee detail screen - the Delete
+     button should now enable as soon as you type a reason.
+  3. Try deleting a session directly from Unverified Sessions - confirm it
+     disappears from the queue and the dashboard shows "Session deleted."
+  4. Check audit_logs after each delete to confirm the DELETE_SESSION
+     row's old_data captures the full session that was removed.
+
+---

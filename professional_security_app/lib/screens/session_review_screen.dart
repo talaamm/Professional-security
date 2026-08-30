@@ -4,14 +4,17 @@ import '../config/theme.dart';
 import '../models/unverified_session.dart';
 import '../services/admin_service.dart';
 import '../widgets/error_banner.dart';
+import '../widgets/reason_dialog.dart';
+
+enum SessionReviewOutcome { verified, deleted }
 
 /// Admin review of one unverified (completed) session: shows the employee,
 /// why it needs review, and the location the employee claimed for
-/// whichever side didn't auto-verify - editable before confirming. Purely
-/// a review/correction tool; nothing here lets the admin see or touch any
-/// other employee's data beyond this one session.
+/// whichever side didn't auto-verify - editable before confirming. Also
+/// lets the admin delete the session outright instead of verifying it.
 ///
-/// Pops `true` if the session was verified.
+/// Pops a SessionReviewOutcome if something happened, or null if the admin
+/// backed out without doing anything.
 class SessionReviewScreen extends StatefulWidget {
   final UnverifiedSession session;
 
@@ -66,7 +69,34 @@ class _SessionReviewScreenState extends State<SessionReviewScreen> {
         note: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
       );
       if (!mounted) return;
-      Navigator.of(context).pop(true);
+      Navigator.of(context).pop(SessionReviewOutcome.verified);
+    } on AdminServiceException catch (e) {
+      setState(() => _error = e.message);
+    } catch (_) {
+      setState(() => _error = 'Something went wrong. Please try again.');
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  Future<void> _confirmDelete() async {
+    final reason = await showRequiredReasonDialog(
+      context: context,
+      title: 'Delete this session?',
+      message: 'This permanently removes the session. This cannot be undone.',
+      confirmLabel: 'Delete',
+    );
+    if (reason == null) return;
+
+    setState(() {
+      _isSubmitting = true;
+      _error = null;
+    });
+
+    try {
+      await _adminService.deleteSession(sessionId: widget.session.sessionId, reason: reason);
+      if (!mounted) return;
+      Navigator.of(context).pop(SessionReviewOutcome.deleted);
     } on AdminServiceException catch (e) {
       setState(() => _error = e.message);
     } catch (_) {
@@ -188,6 +218,17 @@ class _SessionReviewScreenState extends State<SessionReviewScreen> {
                     child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
                   )
                 : const Text('VERIFY SESSION'),
+          ),
+          const SizedBox(height: 24),
+          const Divider(color: AppColors.surface),
+          const SizedBox(height: 12),
+          OutlinedButton(
+            onPressed: _isSubmitting ? null : _confirmDelete,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.error,
+              side: const BorderSide(color: AppColors.error),
+            ),
+            child: const Text('DELETE SESSION'),
           ),
         ],
       ),

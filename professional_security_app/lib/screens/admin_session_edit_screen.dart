@@ -5,6 +5,7 @@ import '../models/work_session.dart';
 import '../models/workplace.dart';
 import '../services/admin_service.dart';
 import '../widgets/error_banner.dart';
+import '../widgets/reason_dialog.dart';
 
 /// Admin correction of one completed session: start/end time, workplace or
 /// manual location, and an optional reason - or delete it outright. Every
@@ -133,50 +134,13 @@ class _AdminSessionEditScreenState extends State<AdminSessionEditScreen> {
   }
 
   Future<void> _confirmDelete() async {
-    final reasonController = TextEditingController();
-    final confirmed = await showDialog<bool>(
+    final reason = await showRequiredReasonDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text('Delete this session?', style: TextStyle(color: AppColors.textPrimary)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'This permanently removes the session. This cannot be undone.',
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: reasonController,
-              style: const TextStyle(color: AppColors.textPrimary),
-              decoration: const InputDecoration(hintText: 'Reason (required)'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: reasonController.text.trim().isEmpty
-                ? null
-                : () => Navigator.of(context).pop(true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+      title: 'Delete this session?',
+      message: 'This permanently removes the session. This cannot be undone.',
+      confirmLabel: 'Delete',
     );
-
-    if (confirmed != true) return;
-    final reason = reasonController.text.trim();
-    if (reason.isEmpty) return;
+    if (reason == null) return;
 
     setState(() {
       _isSubmitting = true;

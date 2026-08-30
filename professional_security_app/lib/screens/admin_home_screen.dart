@@ -62,14 +62,16 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   }
 
   Future<void> _reviewSession(UnverifiedSession session) async {
-    final verified = await Navigator.of(context).push<bool>(
+    final outcome = await Navigator.of(context).push<SessionReviewOutcome>(
       MaterialPageRoute(builder: (_) => SessionReviewScreen(session: session)),
     );
-    if (verified == true) {
+    if (outcome != null) {
       await _load();
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Session verified.')));
+      final message = outcome == SessionReviewOutcome.verified
+          ? 'Session verified.'
+          : 'Session deleted.';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
     }
   }
 
