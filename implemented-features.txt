@@ -184,3 +184,63 @@
      work_sessions.start_verification in Supabase.
 
 ✻ Cogitated for 14m 50s · done 10:22 PM
+
+---
+
+● Summary
+
+  What changed: Implemented GPS verification on the Finish Work flow, symmetric
+  to the Phase 4 start flow. Pressing "Finish Work" now confirms, then pushes a
+  new EndWorkScreen that: gets current GPS -> asks the backend to end the
+  session -> the backend re-checks the position against the workplace recorded
+  when THAT session started -> ends immediately if it matches, or asks the
+  employee to confirm their location manually if it doesn't (or if the start
+  workplace was never recognized in the first place).
+
+  Backend (needs you to run this): db_files/phase4-end-session.sql in the
+  Supabase SQL editor. It adds:
+  - work_sessions.end_manual_location_name — new column, mirrors the existing
+    manual_location_name but for the end side, so a manual start and a manual
+    end never overwrite each other's location text.
+  - end_work_session(lat, lon, accuracy, manual_location_name default null) —
+    replaces the Phase 3 no-arg version. Looks up the caller's active session's
+    workplace_id, recomputes the distance from the submitted coordinates (never
+    trusts the client), and:
+      * within radius -> end_verification = 'verified', session ends now.
+      * no workplace_id, workplace gone, or outside radius -> raises
+        'LOCATION_MISMATCH' and does NOT end the session; the client must
+        resubmit with manual_location_name, which ends it with
+        end_verification = 'manual'.
+  - There's no separate "unverified" column — a session is fully verified only
+    when both start_verification and end_verification are 'verified'; anything
+    else (manual on either side) is unverified/pending admin review, same
+    convention the Phase 4 start flow already established.
+
+  Flutter changes:
+  - lib/services/work_session_service.dart — endWorkSession() now takes
+    latitude/longitude/accuracy and an optional manualLocationName.
+  - lib/screens/end_work_screen.dart (new) — checking -> auto-ends on match, or
+    manual-entry stage on 'LOCATION_MISMATCH' with a warning that the session
+    will be marked unverified; error/retry state for GPS failures.
+  - lib/screens/home_screen.dart — "Finish Work" keeps its confirmation dialog,
+    then navigates to EndWorkScreen instead of calling end_work_session
+    directly; shows a snackbar afterward ("Session ended." or "Session ended —
+    marked as unverified, pending admin review."). Removed the now-unused
+    _isSubmitting/_finishWork path since the screen handles its own state.
+
+  Verification: flutter analyze — 0 issues. Could not exercise the live
+  GPS/DB flow — no device/emulator or Supabase execution access here.
+
+  Next steps for you:
+  1. Run db_files/phase4-end-session.sql in the Supabase SQL editor.
+  2. Test on a real device/emulator: finish while still at the start
+     workplace (should end verified, no extra prompt); finish after moving
+     away or with a workplace that was manually entered at start (should
+     prompt for manual confirmation and end as unverified); check
+     work_sessions.end_verification / end_manual_location_name in Supabase
+     after each.
+
+✻ Worked for 9m 0s · done 7:51 AM
+
+---
+

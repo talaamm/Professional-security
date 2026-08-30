@@ -8,11 +8,13 @@ import '../models/work_session.dart';
 import '../services/auth_service.dart';
 import '../services/work_session_service.dart';
 import '../widgets/error_banner.dart';
+import 'end_work_screen.dart';
 import 'start_work_screen.dart';
 
 /// Employee home dashboard: current work status and the start/finish work
 /// action. Starting work hands off to StartWorkScreen (GPS + workplace
-/// detection); finishing happens right here after a confirmation dialog.
+/// detection); finishing asks for confirmation here, then hands off to
+/// EndWorkScreen (GPS + re-check against the session's start workplace).
 class HomeScreen extends StatefulWidget {
   final Profile profile;
 
@@ -28,7 +30,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   WorkSession? _activeSession;
   bool _isLoading = true;
-  bool _isSubmitting = false;
   String? _error;
   Timer? _ticker;
 
@@ -112,28 +113,28 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     if (confirmed == true) {
-      await _finishWork();
+      await _goToEndWork(session);
     }
   }
 
-  Future<void> _finishWork() async {
-    setState(() {
-      _isSubmitting = true;
-      _error = null;
-    });
+  Future<void> _goToEndWork(WorkSession session) async {
+    final verified = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => EndWorkScreen(session: session)),
+    );
+    if (verified == null) return;
 
-    try {
-      await _sessionService.endWorkSession();
-      if (!mounted) return;
-      _ticker?.cancel();
-      setState(() => _activeSession = null);
-    } on WorkSessionException catch (e) {
-      setState(() => _error = e.message);
-    } catch (_) {
-      setState(() => _error = 'Something went wrong. Please try again.');
-    } finally {
-      if (mounted) setState(() => _isSubmitting = false);
-    }
+    _ticker?.cancel();
+    await _loadActiveSession();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          verified
+              ? 'Session ended.'
+              : 'Session ended — marked as unverified, pending admin review.',
+        ),
+      ),
+    );
   }
 
   String _formatTime(DateTime dt) {
@@ -201,25 +202,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 24),
                   ElevatedButton(
-                    onPressed: _isSubmitting
-                        ? null
-                        : (isWorking ? _confirmFinishWork : _goToStartWork),
+                    onPressed: isWorking ? _confirmFinishWork : _goToStartWork,
                     style: isWorking
                         ? ElevatedButton.styleFrom(
                             backgroundColor: AppColors.error,
                             foregroundColor: Colors.white,
                           )
                         : null,
-                    child: _isSubmitting
-                        ? SizedBox(
-                            height: 22,
-                            width: 22,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: isWorking ? Colors.white : Colors.black,
-                            ),
-                          )
-                        : Text(isWorking ? 'FINISH WORK' : 'START WORK'),
+                    child: Text(isWorking ? 'FINISH WORK' : 'START WORK'),
                   ),
                 ],
               ),

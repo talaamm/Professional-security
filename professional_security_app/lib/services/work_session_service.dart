@@ -76,9 +76,24 @@ class WorkSessionService {
     }
   }
 
-  Future<WorkSession> endWorkSession() async {
+  /// Ends the caller's active session. The backend checks [latitude]/
+  /// [longitude] against the workplace recorded when that session started;
+  /// if it doesn't match (or that workplace was never recognized), it
+  /// throws with message 'LOCATION_MISMATCH' and the caller must resubmit
+  /// with [manualLocationName], which ends the session as manual/unverified.
+  Future<WorkSession> endWorkSession({
+    required double latitude,
+    required double longitude,
+    required double accuracy,
+    String? manualLocationName,
+  }) async {
     try {
-      final data = await _client.rpc('end_work_session');
+      final data = await _client.rpc('end_work_session', params: {
+        'p_latitude': latitude,
+        'p_longitude': longitude,
+        'p_accuracy': accuracy,
+        'p_manual_location_name': manualLocationName,
+      });
       return WorkSession.fromMap(data as Map<String, dynamic>);
     } on PostgrestException catch (e) {
       throw WorkSessionException(e.message);

@@ -295,8 +295,13 @@ create table public.work_sessions (
     end_verification public.verification_method
         not null default 'unknown',
 
-    -- Used when automatic workplace detection fails
+    -- Used when automatic workplace detection fails at start
     manual_location_name text,
+
+    -- Used when the end location doesn't match the start workplace
+    -- (or the start workplace wasn't recognized) and the employee
+    -- confirms their end location manually
+    end_manual_location_name text,
 
     -- Who/what created the session
     source public.session_source
@@ -360,6 +365,12 @@ create table public.work_sessions (
         check (
             manual_location_name is null
             or length(trim(manual_location_name)) > 0
+        ),
+
+    constraint work_sessions_end_manual_location_valid
+        check (
+            end_manual_location_name is null
+            or length(trim(end_manual_location_name)) > 0
         )
 );
 
