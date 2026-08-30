@@ -21,17 +21,17 @@ Employee Start/End Session
         ↓
 TEST                                                        DONE
         ↓
-PHASE 4                                                     currently here
+PHASE 4                                                     DONE
 GPS + Workplace Detection
         ↓
 TEST
         ↓
-PHASE 5
-Employee History + Corrections
+PHASE 5                                                     DONE
+Employee History
         ↓
 TEST
         ↓
-PHASE 6
+PHASE 6                                                     currently here
 Admin Dashboard
         ↓
 TEST

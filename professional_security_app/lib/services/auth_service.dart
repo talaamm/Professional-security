@@ -77,6 +77,16 @@ class AuthService {
 
   Future<void> logout() => _client.auth.signOut();
 
+  /// Changes the currently signed-in user's password. Supabase trusts the
+  /// active session for this - no need to re-enter the current password.
+  Future<void> changePassword(String newPassword) async {
+    try {
+      await _client.auth.updateUser(UserAttributes(password: newPassword));
+    } on AuthException catch (e) {
+      throw AuthServiceException(e.message);
+    }
+  }
+
   String _mapSignUpError(AuthException e) {
     final message = e.message.toLowerCase();
     if (message.contains('already registered') ||

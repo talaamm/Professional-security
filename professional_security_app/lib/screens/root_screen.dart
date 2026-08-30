@@ -1,0 +1,67 @@
+import 'package:flutter/material.dart';
+
+import '../config/theme.dart';
+import '../models/profile.dart';
+import 'employee_profile_screen.dart';
+import 'history_screen.dart';
+import 'home_screen.dart';
+import 'reports_screen.dart';
+
+/// Bottom-navigation shell for the employee app: Home, History, Reports,
+/// Profile. Each tab is a self-contained screen (own Scaffold/AppBar); this
+/// widget only owns which one is showing.
+class RootScreen extends StatefulWidget {
+  final Profile profile;
+
+  const RootScreen({super.key, required this.profile});
+
+  @override
+  State<RootScreen> createState() => _RootScreenState();
+}
+
+class _RootScreenState extends State<RootScreen> {
+  int _index = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final pages = [
+      HomeScreen(profile: widget.profile),
+      HistoryScreen(profile: widget.profile),
+      const ReportsScreen(),
+      EmployeeProfileScreen(profile: widget.profile),
+    ];
+
+    return Scaffold(
+      body: IndexedStack(index: _index, children: pages),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _index,
+        onTap: (index) => setState(() => _index = index),
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: AppColors.surface,
+        selectedItemColor: AppColors.primary,
+        unselectedItemColor: AppColors.textSecondary,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.history),
+            label: 'History',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.bar_chart_outlined),
+            activeIcon: Icon(Icons.bar_chart),
+            label: 'Reports',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline),
+            activeIcon: Icon(Icons.person),
+            label: 'Profile',
+          ),
+        ],
+      ),
+    );
+  }
+}

@@ -33,6 +33,44 @@ class WorkSessionService {
     return WorkSession.fromMap(data);
   }
 
+  /// How many of this employee's sessions have ended - relies on the
+  /// existing work_sessions_select_own RLS policy, same as every other
+  /// employee-scoped read here.
+  Future<int> countCompletedSessions(String employeeId) async {
+    final response = await _client
+        .from('work_sessions')
+        .select('id')
+        .eq('employee_id', employeeId)
+        .not('ended_at', 'is', null)
+        .count(CountOption.exact);
+    return response.count;
+  }
+
+  /// This employee's sessions started within [monthStart, monthEndExclusive),
+  /// newest first. Goes through list_my_sessions_for_month() (see
+  /// db_files/phase6-fix-history-verified-by.sql) rather than a plain
+  /// client-side select: that function resolves the caller's employee_id
+  /// itself from auth.uid() (never trusting a client-passed id) and can
+  /// safely join the verifying admin's name, which a plain select can't -
+  /// profiles has no RLS policy letting an employee read another
+  /// employee/admin's profile row.
+  Future<List<WorkSession>> fetchSessionsForMonth({
+    required DateTime monthStart,
+    required DateTime monthEndExclusive,
+  }) async {
+    try {
+      final data = await _client.rpc('list_my_sessions_for_month', params: {
+        'p_month_start': monthStart.toUtc().toIso8601String(),
+        'p_month_end_exclusive': monthEndExclusive.toUtc().toIso8601String(),
+      });
+      return (data as List)
+          .map((row) => WorkSession.fromMonthRow(row as Map<String, dynamic>))
+          .toList();
+    } on PostgrestException catch (e) {
+      throw WorkSessionException(e.message);
+    }
+  }
+
   /// Active workplaces within their own configured radius of the given
   /// coordinates, closest first. Purely informational for the picker UI -
   /// start_work_session() re-validates the distance itself.

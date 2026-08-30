@@ -23,6 +23,7 @@ class Profile {
   final String fullName;
   final UserRole role;
   final UserStatus status;
+  final DateTime createdAt;
 
   const Profile({
     required this.employeeId,
@@ -30,6 +31,7 @@ class Profile {
     required this.fullName,
     required this.role,
     required this.status,
+    required this.createdAt,
   });
 
   factory Profile.fromMap(Map<String, dynamic> map) {
@@ -39,6 +41,7 @@ class Profile {
       fullName: map['full_name'] as String,
       role: userRoleFromString(map['role'] as String),
       status: userStatusFromString(map['status'] as String),
+      createdAt: DateTime.parse(map['created_at'] as String).toLocal(),
     );
   }
 }

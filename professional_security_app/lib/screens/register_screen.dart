@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../config/theme.dart';
 import '../services/auth_service.dart';
@@ -170,14 +171,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 TextFormField(
                   controller: _employeeIdController,
                   textInputAction: TextInputAction.next,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(9),
+                  ],
                   style: const TextStyle(color: AppColors.textPrimary),
                   decoration: const InputDecoration(
                     labelText: 'Employee ID Number',
-                    hintText: 'e.g. 10428955',
+                    hintText: 'e.g. 034829551',
                     prefixIcon: Icon(Icons.badge_outlined, color: AppColors.textSecondary),
                   ),
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Employee ID is required' : null,
+                  validator: (v) {
+                    final value = v?.trim() ?? '';
+                    if (value.isEmpty) return 'Employee ID is required';
+                    if (!RegExp(r'^\d{9}$').hasMatch(value)) {
+                      return 'Employee ID must be exactly 9 digits';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 16),
                 TextFormField(

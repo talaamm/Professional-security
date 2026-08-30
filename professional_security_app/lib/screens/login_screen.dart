@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../config/theme.dart';
 import '../services/auth_service.dart';
@@ -29,6 +30,18 @@ class _LoginScreenState extends State<LoginScreen> {
   void initState() {
     super.initState();
     _error = widget.errorMessage;
+  }
+
+  @override
+  void didUpdateWidget(covariant LoginScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // AuthGate reuses this same State when it bounces back to the login
+    // screen without ever leaving it (e.g. login succeeds at the auth
+    // level but the profile turns out to be inactive) - initState() only
+    // runs once, so a freshly-set errorMessage needs to be picked up here.
+    if (widget.errorMessage != null && widget.errorMessage != oldWidget.errorMessage) {
+      setState(() => _error = widget.errorMessage);
+    }
   }
 
   @override
@@ -104,14 +117,24 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextFormField(
                   controller: _employeeIdController,
                   textInputAction: TextInputAction.next,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(9),
+                  ],
                   style: const TextStyle(color: AppColors.textPrimary),
                   decoration: const InputDecoration(
-                    hintText: 'e.g. TG-1042',
+                    hintText: 'e.g. 034829551',
                     prefixIcon: Icon(Icons.person_outline, color: AppColors.textSecondary),
                   ),
-                  validator: (value) => (value == null || value.trim().isEmpty)
-                      ? 'Employee ID is required'
-                      : null,
+                  validator: (value) {
+                    final v = value?.trim() ?? '';
+                    if (v.isEmpty) return 'Employee ID is required';
+                    if (!RegExp(r'^\d{9}$').hasMatch(v)) {
+                      return 'Employee ID must be exactly 9 digits';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 16),
                 const Text('Password', style: TextStyle(color: AppColors.textSecondary)),

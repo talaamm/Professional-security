@@ -5,15 +5,19 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../config/theme.dart';
 import '../models/profile.dart';
-import '../screens/home_screen.dart';
+import '../screens/admin_root_screen.dart';
 import '../screens/login_screen.dart';
+import '../screens/root_screen.dart';
 import '../services/auth_service.dart';
 
 enum _GateStatus { loading, loggedOut, loggedIn }
 
-/// Root widget that decides between the Login and Home screens based on the
-/// current Supabase session, and re-validates the profile (active/inactive)
-/// on every app start and auth state change.
+/// Root widget that decides between the Login screen and the main app based
+/// on the current Supabase session, and re-validates the profile
+/// (active/inactive) on every app start and auth state change. Admins and
+/// super admins land on AdminRootScreen instead of the employee RootScreen -
+/// they're treated identically for now, the super-admin-over-admins
+/// hierarchy is a later phase.
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
 
@@ -62,7 +66,8 @@ class _AuthGateState extends State<AuthGate> {
       if (profile.status == UserStatus.inactive) {
         await _authService.logout();
         _setLoggedOut(
-          'This account is inactive. Please contact an administrator.',
+          'Sign-in failed: your account has been deactivated. '
+          'If you believe this is a mistake, please contact an administrator.',
         );
         return;
       }
@@ -101,7 +106,11 @@ class _AuthGateState extends State<AuthGate> {
       case _GateStatus.loggedOut:
         return LoginScreen(errorMessage: _loginError);
       case _GateStatus.loggedIn:
-        return HomeScreen(profile: _profile!);
+        final profile = _profile!;
+        if (profile.role == UserRole.admin || profile.role == UserRole.superAdmin) {
+          return AdminRootScreen(profile: profile);
+        }
+        return RootScreen(profile: profile);
     }
   }
 }

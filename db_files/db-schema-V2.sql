@@ -114,6 +114,12 @@ create table public.profiles (
     constraint profiles_employee_id_not_empty
         check (length(trim(employee_id)) > 0),
 
+    -- Employee accounts use a 9-digit numeric ID (may start with 0,
+    -- hence text not int). Admins/super_admins are provisioned
+    -- directly in Supabase, so they're excluded from this rule.
+    constraint profiles_employee_id_format
+        check (role <> 'employee' or employee_id ~ '^[0-9]{9}$'),
+
     constraint profiles_full_name_not_empty
         check (length(trim(full_name)) > 0),
 
@@ -302,6 +308,14 @@ create table public.work_sessions (
     -- (or the start workplace wasn't recognized) and the employee
     -- confirms their end location manually
     end_manual_location_name text,
+
+    -- Who is vouching for this session's accuracy: the employee
+    -- themself (auto-set when both start and end were GPS-verified),
+    -- or the admin who reviewed and corrected an unverified session.
+    -- NULL means the session still needs admin review.
+    verified_by text
+        references public.profiles(employee_id)
+        on delete restrict,
 
     -- Who/what created the session
     source public.session_source

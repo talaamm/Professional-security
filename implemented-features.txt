@@ -244,3 +244,376 @@
 
 ---
 
+● Summary
+
+  What changed: Added the bottom navigation bar (Home / History / Reports /
+  Profile) and built out the Phase 5 employee History screen behind it.
+
+  Flutter changes:
+  - lib/screens/root_screen.dart (new) — bottom-nav shell wrapping the four
+    tabs in an IndexedStack; each tab is its own self-contained Scaffold.
+  - lib/widgets/auth_gate.dart — logged-in state now returns RootScreen
+    instead of HomeScreen directly (HomeScreen itself is unchanged).
+  - lib/screens/history_screen.dart (new) — month picker (< August 2026 >
+    arrows, next-month disabled once you reach the current month — no extra
+    package needed, so stuck with the preferred month-based approach instead
+    of a start/end date-range picker) plus a list of that month's sessions:
+    date, workplace, time range, duration, and a Verified/Unverified/In
+    progress status badge. Read-only — no edit or delete control anywhere on
+    the screen, per your instruction that employees can't modify session
+    data from history.
+  - lib/services/work_session_service.dart — added fetchSessionsForMonth(),
+    a plain SELECT filtered by employee_id and a started_at date range. No
+    new backend function was needed: the existing work_sessions_select_own
+    RLS policy (employee_id = the caller's own profile, resolved server-side
+    from auth.uid()) is the actual security boundary, so no client-side
+    tampering with the query can ever surface another employee's sessions.
+  - lib/models/work_session.dart — added endVerification and a
+    verificationStatus getter (Verified only when both start and end
+    matched the recorded workplace; otherwise Unverified; In progress while
+    still active).
+  - lib/screens/reports_screen.dart, lib/screens/profile_screen.dart (new) —
+    plain "Coming soon" placeholders so the nav bar has somewhere to go;
+    their actual functionality is later phases (Reports is Phase 8) and
+    wasn't part of this task.
+
+  Verification: flutter analyze — 0 issues. Could not exercise the app live
+  (no device/emulator here).
+
+  Next step for you: run the app and check the new History tab — switch
+  months with the arrows, confirm only your own sessions appear, and confirm
+  a session with a mismatched/manual end shows "Unverified" while a normal
+  matched session shows "Verified".
+
+
+✻ Crunched for 27s · done 8:21 AM
+
+---
+
+● Summary
+
+  What changed: Built the first admin experience (Phase 6) - role-based
+  routing plus an Admin Dashboard with "Currently Working" and "Unverified
+  Sessions" cards, and a review screen admins use to correct and verify a
+  session. Employee experience is untouched.
+
+  Backend (needs you to run this): db_files/phase6-admin-dashboard.sql in
+  the Supabase SQL editor. It adds:
+  - work_sessions.verified_by (FK to profiles.employee_id, nullable) - who
+    is vouching for a completed session's accuracy. NULL means it still
+    needs admin review.
+  - end_work_session() - replaced to set verified_by to the employee
+    themself automatically when a session ends with BOTH start and end
+    GPS-verified (the "no issues" default case you asked for). Left NULL
+    otherwise, so the session surfaces for review once it ends.
+  - admin_active_sessions() - employees with an active session right now,
+    for the dashboard's "Currently Working" card. SECURITY DEFINER with an
+    explicit is_admin() check (raises if the caller isn't one), so this
+    can never be tricked into listing sessions for a non-admin caller.
+  - admin_unverified_sessions() - completed sessions where verified_by is
+    still NULL and either side isn't 'verified'. Only sessions that have
+    ENDED are ever in this queue - an active session's manual start is
+    already flagged to the employee as "pending review" (Phase 4), but
+    there's nothing final to correct until the session actually ends
+    (its end could still auto-verify).
+  - admin_verify_session(session_id, start_location?, end_location?, note?)
+    - marks both sides 'verified', optionally overwrites the claimed
+      location text with the admin's correction, sets verified_by to the
+      calling admin, and writes an audit_logs row (old/new session data +
+      the admin's note).
+
+  Flutter changes:
+  - lib/widgets/auth_gate.dart - after login, admin/super_admin now route
+    to the new AdminHomeScreen instead of the employee RootScreen (both
+    roles treated identically for now, per your note that the
+    admin-over-admin hierarchy is a later phase). Employees are unaffected.
+  - lib/screens/admin_home_screen.dart (new) - two expandable cards
+    (ExpansionTile): Currently Working (name, workplace/claimed location,
+    "Since HH:mm", a small flag if the start was manual) and Unverified
+    Sessions (name, workplace, plain-language reason) - tapping a row opens
+    the review screen. Pull-to-refresh reloads both.
+  - lib/screens/session_review_screen.dart (new) - full session details,
+    the reason it needs review, and an editable text field prefilled with
+    the employee's claimed location for whichever side(s) actually need
+    it (only start, only end, or both) - fields for an already-verified
+    side aren't shown at all. "Verify Session" is disabled until every
+    shown field is non-empty.
+  - lib/services/admin_service.dart, lib/models/active_employee_session.dart,
+    lib/models/unverified_session.dart (new) - thin wrappers around the
+    three RPCs above.
+  - lib/models/work_session.dart, lib/services/work_session_service.dart -
+    added verifiedBy/verifiedByName + a verifiedByLabel getter ('You' /
+    the admin's name / 'Pending review'); fetchSessionsForMonth() now joins
+    the verified_by relationship (disambiguated as
+    profiles!work_sessions_verified_by_fkey since work_sessions now has two
+    FKs into profiles - employee_id and verified_by).
+  - lib/screens/history_screen.dart - each session card now shows "Verified
+    by: ..." beneath the time range, per your requirement that employees
+    see who verified their session.
+
+  Security: every admin function is SECURITY DEFINER with its own explicit
+  role check inside (never trusts the client's claimed role), matching the
+  pattern your existing start/end-session functions already use. Regular
+  employees still can't read another employee's sessions or profile
+  outside these admin-gated functions - the existing work_sessions_select_own
+  / profiles_select_own RLS policies are untouched.
+
+  Verification: flutter analyze - 0 issues. Could not exercise the live
+  Supabase flow (no execution access, no device/emulator here).
+
+  Next steps for you:
+  1. Run db_files/phase6-admin-dashboard.sql in the Supabase SQL editor.
+  2. Manually promote a test profile to role = 'admin' (or 'super_admin')
+     in Supabase and confirm logging in as that user lands on the Admin
+     Dashboard, while a normal employee still lands on Home.
+  3. Test the review flow end to end: have an employee end a session with
+     a mismatched/manual location so it lands in "Unverified Sessions",
+     open it as admin, edit the claimed location, verify it, then check
+     as that employee that History now shows "Verified" and "Verified by:
+     <admin's name>".
+  4. Confirm a normal fully GPS-matched session shows "Verified by: You"
+     for the employee, with no admin action needed.
+
+✻ Cooked for 55s · done 9:14 AM
+
+---
+
+● Summary
+
+  What changed: Fixed a real bug in the employee History "Verified by" line,
+  then added the admin Employees tab (search, employee detail, activate/
+  deactivate, session history, and two UI-only placeholder buttons for a
+  later phase).
+
+  Bug found and fixed: employee History was showing the verifying admin's
+  raw employee_id instead of their name. Root cause - fetchSessionsForMonth
+  did a plain client-side select embedding
+  profiles!work_sessions_verified_by_fkey(full_name), but that embed is
+  still subject to RLS on profiles, and profiles has no policy letting a
+  plain employee read an admin's profile row (only their own, via
+  profiles_select_own). The embed silently came back NULL and the UI fell
+  back to printing the raw id. Fix (db_files/phase6-fix-history-verified-by.sql):
+  moved this read into list_my_sessions_for_month(), a SECURITY DEFINER
+  function scoped to the caller's own employee_id (resolved server-side
+  from auth.uid(), never taken from the client), which can safely join the
+  verifier's name without needing a broader RLS grant on profiles.
+  WorkSessionService.fetchSessionsForMonth() now calls that RPC instead of
+  a raw select; WorkSession gained a fromMonthRow() factory for its flat
+  column shape.
+
+  New feature - admin Employees tab (Phase 7 slice):
+  - db_files/phase7-employee-management.sql - admin_set_employee_status(
+    employee_id, status, reason?), SECURITY DEFINER with its own is_admin()
+    check. Also blocks an admin from deactivating themself, and rejects
+    targeting a non-employee account. Sets deactivated_at together with
+    status (profiles_status_dates already requires them to move together -
+    a raw client update would have violated that check constraint half the
+    time). Writes an audit_logs row like every other admin action.
+  - lib/screens/admin_root_screen.dart (new) - bottom nav for admins: Home
+    / Employees / Profile (Profile reuses the existing placeholder screen).
+  - lib/screens/admin_employees_screen.dart (new) - debounced search box;
+    matches employee_id OR full_name, case-insensitive substring (ILIKE),
+    which works the same for Arabic/Hebrew names as Latin ones. Scoped to
+    role = 'employee' only - this tab is for managing the workforce, not
+    other admins (admin-management is explicitly a later phase). Two
+    separate ilike queries merged/deduped client-side rather than one
+    .or(...) filter string, to avoid having to hand-escape commas/parens
+    in whatever the admin types into the search box.
+  - lib/screens/admin_employee_detail_screen.dart (new) - full name,
+    employee ID, active/inactive badge, an Activate/Deactivate button
+    (confirmation dialog first), that employee's completed sessions ("since
+    they started" - no date limit), and two placeholder buttons ("Month &
+    Year", "Download") that just show a "coming soon" snackbar, exactly as
+    you asked - no filtering/report logic wired up yet.
+  - lib/services/admin_service.dart - added searchEmployees(),
+    fetchEmployeeSessions() (direct selects, backed by the existing
+    profiles_select_admin / work_sessions_select_admin RLS policies - no
+    new function needed for reads), and setEmployeeStatus().
+  - lib/widgets/auth_gate.dart - admin/super_admin now land on
+    AdminRootScreen (was AdminHomeScreen directly).
+
+  Verification: flutter analyze - 0 issues (also caught and fixed two real
+  issues of my own along the way: a wrong PopScope API for this Flutter
+  version, and an unnecessary cast). Could not exercise the live Supabase
+  flow or Arabic/Hebrew input specifically (no device/emulator here).
+
+  Next steps for you:
+  1. Run db_files/phase6-fix-history-verified-by.sql and
+     db_files/phase7-employee-management.sql in the Supabase SQL editor.
+  2. As an employee, confirm History now shows the actual admin's name
+     under "Verified by" (re-run the earlier admin-verify test if you still
+     have an unverified session sitting around).
+  3. As an admin, search by a full employee ID (expect exactly one card),
+     then by a partial name including an Arabic/Hebrew one if you have test
+     data for it (expect every matching employee). Open one, deactivate it,
+     confirm that employee is immediately blocked from logging in, then
+     reactivate it.
+
+---
+
+● Summary
+
+  What changed: Fixed the "silent" deactivation-login failure, locked the
+  Employee ID field to exactly 9 digits, and built the Employee Profile
+  page (details, join date, session count, language preference,
+  change password).
+
+  Bug found and fixed - deactivated login showed no message: the fix from
+  last session (AuthGate detects an inactive profile after a successful
+  Supabase Auth sign-in and logs the user back out with a message) was
+  actually already there, but the message never reached the screen. Root
+  cause: LoginScreen only copies widget.errorMessage into its local _error
+  state in initState(), which runs once. Since the login attempt never
+  leaves the "logged out" status (sign-in succeeds at the auth level, then
+  AuthGate immediately reverses it), AuthGate rebuilds with the SAME
+  LoginScreen widget type in the same tree position, so Flutter reuses the
+  existing State and calls didUpdateWidget() instead of initState() -
+  which LoginScreen didn't override, so the new message was silently
+  dropped. Fixed by adding didUpdateWidget() to pick up a new
+  errorMessage. Also reworded the message per your wording: "Sign-in
+  failed: your account has been deactivated. If you believe this is a
+  mistake, please contact an administrator."
+
+  Employee ID format - exactly 9 digits, numeric only (a string since it
+  may start with 0):
+  - lib/screens/register_screen.dart, lib/screens/login_screen.dart - the
+    Employee ID field now uses a numeric keyboard, digits-only input
+    filtering, a 9-character limit, and a validator requiring exactly 9
+    digits.
+  - db_files/fix-employee-id-format.sql (run this) - the same rule as a
+    database CHECK constraint, since frontend validation alone can always
+    be bypassed by calling supabase.auth.signUp() directly. Scoped to
+    role = 'employee' (admins are provisioned directly by you in Supabase,
+    not through Register, so they're exempt). Added NOT VALID so it won't
+    retroactively fail if you already have non-conforming test accounts -
+    it only guards new inserts/updates from here on.
+
+  New feature - Employee Profile page:
+  - lib/screens/employee_profile_screen.dart (new) - full name, employee
+    ID, "member since" (profiles.created_at), and completed session count
+    (a COUNT query, not fetching every row). Plus two actions:
+    - Language: a bottom sheet to pick English/Arabic/Hebrew, saved with
+      the new shared_preferences dependency. This is intentionally just a
+      remembered preference for now - nothing in the app reads it yet,
+      per your note that you'll wire up real translations later. Local
+      device storage is enough for that; not worth a profiles column or
+      new RLS/function plumbing for a value nothing consumes yet.
+    - Change Password: lib/screens/change_password_screen.dart (new) -
+      just a new password + confirmation, calls
+      supabase.auth.updateUser(), exactly as you described (no
+      re-entering the current password - Supabase trusts the active
+      session for this).
+  - lib/services/work_session_service.dart - countCompletedSessions().
+  - lib/services/auth_service.dart - changePassword().
+  - lib/models/profile.dart - added createdAt.
+  - lib/screens/root_screen.dart - the employee Profile tab now uses
+    EmployeeProfileScreen instead of the generic placeholder. (The admin
+    Profile tab still shows the placeholder - not part of this request.)
+
+  Verification: flutter pub get, flutter analyze - 0 issues (also caught
+  and fixed a deprecated RadioListTile groupValue/onChanged API along the
+  way - replaced with the newer RadioGroup ancestor widget). Could not
+  exercise the live Supabase flow or test actual Arabic/Hebrew rendering
+  (no device/emulator here, and there's no translation wired up yet
+  regardless).
+
+  Next steps for you:
+  1. Run db_files/fix-employee-id-format.sql in the Supabase SQL editor.
+  2. Deactivate a test employee, then try to log in as them - confirm the
+     deactivation message now actually appears on the login screen.
+  3. Try registering with a non-9-digit or non-numeric Employee ID -
+     confirm the form blocks it before it ever reaches the server.
+  4. Open the Profile tab as an employee: confirm member-since date and
+     completed-session count look right, change the language and confirm
+     it's remembered after restarting the app, and change your password
+     then log out/in with the new one.
+
+---
+
+● Summary
+
+  What changed: Admins can now end an active session from the dashboard,
+  and edit or delete a session from an employee's detail screen. Also
+  improved the employee History screen's error message so a real failure
+  is actually diagnosable, and added a logout button to the employee
+  Profile page.
+
+  History "keeps saying to retry" - about the code, not a fix I could
+  fully verify: I reviewed fetchSessionsForMonth() and
+  list_my_sessions_for_month() line by line and found no bug in either -
+  parameter names match, and the logic is unchanged from what I already
+  tested via flutter analyze. The most likely explanation is that
+  db_files/phase6-fix-history-verified-by.sql (from last session, the one
+  that added this function) hasn't been run against your Supabase project
+  yet - every call would fail with a "function not found" error, which
+  would show as exactly this symptom. What I DID fix:
+  lib/screens/history_screen.dart was swallowing the real error message
+  and always showing the same generic "Could not load your history. Pull
+  down to retry." - it now shows "Could not load your history: <actual
+  reason>" when the database itself returns an error, so if it's
+  something other than a missing migration, the message will tell us
+  exactly what. Please check the SQL editor's migration history / re-run
+  that file, then re-test - if it still fails, send me the new message
+  text.
+
+  New feature - end an active session from the dashboard:
+  - db_files/phase7-session-management.sql (run this) -
+    admin_end_work_session(session_id, reason?): ends a still-active
+    session, source = 'admin', end_verification = 'manual' (no GPS
+    reading from an admin acting remotely) - so a force-ended session
+    lands in the existing Unverified Sessions queue for proper follow-up,
+    reusing infrastructure you already have rather than inventing a new
+    status. Per requirements-and-architecture_V1.md section 4.3, it does
+    NOT look like the employee ended it themself.
+  - lib/screens/admin_home_screen.dart - each "Currently Working" row now
+    has a red stop icon; tapping it confirms (with an optional reason)
+    before ending that employee's session.
+
+  New feature - edit/delete a session from the employee detail screen:
+  - Same migration adds admin_edit_work_session(session_id, started_at,
+    ended_at, workplace_id?, manual_location_name?, reason?) and
+    admin_delete_work_session(session_id, reason). Both are SECURITY
+    DEFINER with their own is_admin() check (work_sessions has no
+    INSERT/UPDATE/DELETE policy for anyone, by original design) and both
+    write an audit_logs row (old/new data, the acting admin, the reason)
+    - unconditionally, including when the session was already verified,
+    per your instruction. Editing marks both sides 'verified' with
+    verified_by = the editing admin, since they're now vouching for the
+    corrected data. Deleting requires a reason (the other two don't) since
+    it's irreversible - the full row is preserved in audit_logs.old_data
+    even though the live row is gone.
+  - lib/screens/admin_session_edit_screen.dart (new) - date/time pickers
+    for start and end, a workplace dropdown (built from every workplace,
+    active or not, since a correction might need to reference a
+    deactivated/temporary one) with a manual-location fallback, an
+    optional reason field, and a separate destructive "Delete Session"
+    action with its own confirmation dialog requiring a reason.
+  - lib/screens/admin_employee_detail_screen.dart - each session card is
+    now tappable, opening the edit screen; the list refreshes afterward.
+  - lib/services/admin_service.dart - added endActiveSession(),
+    fetchWorkplaces(), editSession(), deleteSession().
+  - lib/models/workplace.dart (new) - minimal {id, name} for the dropdown.
+
+  Other: lib/screens/employee_profile_screen.dart - added a logout button
+  to the AppBar (Home's still has its own too; this just adds the same
+  action where you asked for it).
+
+  Verification: flutter analyze - 0 issues. Could not exercise the live
+  Supabase flow (no execution access, no device/emulator here) - in
+  particular I could not reproduce or confirm-fix the History symptom
+  myself, since it depends on which migrations have actually been run
+  against your project.
+
+  Next steps for you:
+  1. Confirm db_files/phase6-fix-history-verified-by.sql has been run;
+     re-run db_files/phase7-session-management.sql for the new features.
+  2. Retry the employee History tab - if it still fails, the new error
+     message should now say why.
+  3. As admin: end an active session from the dashboard and confirm it
+     shows up in Unverified Sessions; edit a session's time/workplace and
+     confirm the change appears in the employee's History; delete a
+     session and confirm it disappears; check audit_logs after each to
+     confirm actor_employee_id/action/reason look right.
+  4. Confirm the employee Profile page's new logout button works.
+
+---
