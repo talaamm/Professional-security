@@ -2,30 +2,32 @@ import 'package:flutter/material.dart';
 
 import '../config/theme.dart';
 import '../models/profile.dart';
+import '../services/admin_service.dart';
+import '../services/auth_service.dart';
 import '../services/language_service.dart';
-import '../services/work_session_service.dart';
 import '../widgets/language_picker.dart';
-import '../widgets/logout_helper.dart';
 import 'change_password_screen.dart';
 
-/// Employee profile: their details, when their account was created, how
-/// many sessions they've completed, a language preference (not wired to
-/// any translation yet - just remembered for later), and a change-password
-/// action.
-class EmployeeProfileScreen extends StatefulWidget {
+/// Admin/super-admin profile: their name and role, how many employee
+/// accounts are currently active (able to sign in - not necessarily
+/// working right now), a language preference, change-password, and
+/// logout. No active-session warning on logout here - admins don't have
+/// work sessions of their own.
+class AdminProfileScreen extends StatefulWidget {
   final Profile profile;
 
-  const EmployeeProfileScreen({super.key, required this.profile});
+  const AdminProfileScreen({super.key, required this.profile});
 
   @override
-  State<EmployeeProfileScreen> createState() => _EmployeeProfileScreenState();
+  State<AdminProfileScreen> createState() => _AdminProfileScreenState();
 }
 
-class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
-  final _sessionService = WorkSessionService();
+class _AdminProfileScreenState extends State<AdminProfileScreen> {
+  final _adminService = AdminService();
+  final _authService = AuthService();
   final _languageService = LanguageService();
 
-  int? _completedSessions;
+  int? _activeEmployeeCount;
   AppLanguage _language = AppLanguage.english;
   bool _isLoading = true;
 
@@ -39,16 +41,16 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
     setState(() => _isLoading = true);
     try {
       final results = await Future.wait([
-        _sessionService.countCompletedSessions(widget.profile.employeeId),
+        _adminService.fetchActiveEmployeeCount(),
         _languageService.getLanguage(),
       ]);
       if (!mounted) return;
       setState(() {
-        _completedSessions = results[0] as int;
+        _activeEmployeeCount = results[0] as int;
         _language = results[1] as AppLanguage;
       });
     } catch (_) {
-      // Non-critical info; leave counters blank rather than blocking the page.
+      // Non-critical info; leave the counter blank rather than blocking the page.
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -60,11 +62,15 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
         onChanged: (language) => setState(() => _language = language),
       );
 
-  String _formatDate(DateTime dt) {
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-    ];
-    return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
+  String get _roleLabel {
+    switch (widget.profile.role) {
+      case UserRole.superAdmin:
+        return 'Super Administrator';
+      case UserRole.admin:
+        return 'Administrator';
+      case UserRole.employee:
+        return 'Employee';
+    }
   }
 
   @override
@@ -77,7 +83,7 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Log out',
-            onPressed: () => handleLogout(context, widget.profile.employeeId),
+            onPressed: _authService.logout,
           ),
         ],
       ),
@@ -107,19 +113,11 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    'Employee ID: ${widget.profile.employeeId}',
-                    style: const TextStyle(color: AppColors.textSecondary),
-                  ),
+                  Text(_roleLabel, style: const TextStyle(color: AppColors.textSecondary)),
                   const Divider(height: 28, color: AppColors.background),
                   _InfoRow(
-                    label: 'MEMBER SINCE',
-                    value: _formatDate(widget.profile.createdAt),
-                  ),
-                  const SizedBox(height: 16),
-                  _InfoRow(
-                    label: 'COMPLETED SESSIONS',
-                    value: _isLoading ? '—' : '${_completedSessions ?? 0}',
+                    label: 'ACTIVE EMPLOYEES',
+                    value: _isLoading ? '—' : '${_activeEmployeeCount ?? 0}',
                   ),
                 ],
               ),

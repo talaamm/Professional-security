@@ -4,7 +4,7 @@ import '../config/theme.dart';
 import '../models/profile.dart';
 import 'admin_employees_screen.dart';
 import 'admin_home_screen.dart';
-import 'profile_screen.dart';
+import 'admin_profile_screen.dart';
 
 /// Bottom-navigation shell for admins/super admins: Home, Employees,
 /// Profile. Each tab is a self-contained screen (own Scaffold/AppBar);
@@ -26,7 +26,7 @@ class _AdminRootScreenState extends State<AdminRootScreen> {
     final pages = [
       AdminHomeScreen(profile: widget.profile),
       const AdminEmployeesScreen(),
-      const ProfileScreen(),
+      AdminProfileScreen(profile: widget.profile),
     ];
 
     return Scaffold(

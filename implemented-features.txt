@@ -778,3 +778,18 @@
   button.
 
 ---
+
+added a feature for admins, an admin can reset a password for an employee upon their request.
+Summary
+
+Bug found and fixed: the "already resolved" error on Done, with the row staying on screen, was a stale-list bug, not a database bug — no code changes needed on the SQL side.
+
+Root cause: _openEmployee() in lib/screens/admin_employees_screen.dart only refreshed the employee search results after returning from AdminEmployeeDetailScreen, and only when the employee's active/inactive status changed. It never reloaded the "Password Reset Requests" queue. So the sequence was: tap a reset-request row → open that employee's detail screen → tap Reset Password (which, per admin_reset_employee_password() in phase7-password-reset.sql, auto-resolves their open request server-side) → navigate back — and the Employees tab still showed the now-resolved request in memory. Tapping "Done" on it correctly got rejected by the database, but since that hits the error branch, the stale row was never removed from the list.
+
+Fix: _openEmployee() now always reloads both the issue-reports and password-reset-requests queues after returning from the detail screen, regardless of whether the status-change flag was set.
+
+Files changed: lib/screens/admin_employees_screen.dart (one method).
+
+Verification: flutter analyze — 0 issues. Please retest: reset a password from a request row, confirm the row disappears immediately on return (no need to tap Done at all), and confirm "Done" still works normally on a request you dismiss without resetting.
+
+---

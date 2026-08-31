@@ -97,6 +97,59 @@ class _AdminEmployeeDetailScreenState extends State<AdminEmployeeDetailScreen> {
     }
   }
 
+  Future<void> _confirmResetPassword() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text(
+          'Reset this password?',
+          style: TextStyle(color: AppColors.textPrimary),
+        ),
+        content: Text(
+          "${widget.employee.fullName}'s password will be reset to the temporary "
+          'password "123456". Let them know so they can sign in and change it from '
+          'their Profile.',
+          style: const TextStyle(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Reset Password'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await _resetPassword();
+    }
+  }
+
+  Future<void> _resetPassword() async {
+    setState(() => _error = null);
+
+    try {
+      await _adminService.resetEmployeePassword(widget.employee.employeeId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password reset to the temporary password "123456".')),
+      );
+    } on AdminServiceException catch (e) {
+      setState(() => _error = e.message);
+    } catch (_) {
+      setState(() => _error = 'Something went wrong. Please try again.');
+    }
+  }
+
   Future<void> _toggleStatus(bool activate) async {
     setState(() {
       _isUpdatingStatus = true;
@@ -232,6 +285,11 @@ class _AdminEmployeeDetailScreenState extends State<AdminEmployeeDetailScreen> {
                         ),
                       )
                     : Text(isActive ? 'DEACTIVATE ACCOUNT' : 'ACTIVATE ACCOUNT'),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton(
+                onPressed: _confirmResetPassword,
+                child: const Text('RESET PASSWORD'),
               ),
               const SizedBox(height: 28),
               const Text(

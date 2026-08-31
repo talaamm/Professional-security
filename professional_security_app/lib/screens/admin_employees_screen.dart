@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../config/theme.dart';
 import '../models/issue_report.dart';
+import '../models/password_reset_request.dart';
 import '../models/profile.dart';
 import '../services/admin_service.dart';
 import '../widgets/dashboard_section.dart';
@@ -37,10 +38,15 @@ class _AdminEmployeesScreenState extends State<AdminEmployeesScreen> {
   bool _isLoadingIssues = true;
   String? _issuesError;
 
+  List<PasswordResetRequest> _resetRequests = [];
+  bool _isLoadingResetRequests = true;
+  String? _resetRequestsError;
+
   @override
   void initState() {
     super.initState();
     _loadIssues();
+    _loadResetRequests();
   }
 
   @override
@@ -76,6 +82,43 @@ class _AdminEmployeesScreenState extends State<AdminEmployeesScreen> {
       await _adminService.resolveIssue(issue.issueId);
       if (!mounted) return;
       setState(() => _issues.removeWhere((i) => i.issueId == issue.issueId));
+    } on AdminServiceException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Something went wrong. Please try again.')),
+      );
+    }
+  }
+
+  Future<void> _loadResetRequests() async {
+    setState(() {
+      _isLoadingResetRequests = true;
+      _resetRequestsError = null;
+    });
+
+    try {
+      final requests = await _adminService.fetchOpenPasswordResetRequests();
+      if (!mounted) return;
+      setState(() => _resetRequests = requests);
+    } on AdminServiceException catch (e) {
+      if (!mounted) return;
+      setState(() => _resetRequestsError = e.message);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _resetRequestsError = 'Could not load password reset requests.');
+    } finally {
+      if (mounted) setState(() => _isLoadingResetRequests = false);
+    }
+  }
+
+  Future<void> _resolveResetRequest(PasswordResetRequest request) async {
+    try {
+      await _adminService.resolvePasswordResetRequest(request.requestId);
+      if (!mounted) return;
+      setState(() => _resetRequests.removeWhere((r) => r.requestId == request.requestId));
     } on AdminServiceException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
@@ -144,6 +187,11 @@ class _AdminEmployeesScreenState extends State<AdminEmployeesScreen> {
     final changed = await Navigator.of(context).push<bool>(
       MaterialPageRoute(builder: (_) => AdminEmployeeDetailScreen(employee: employee)),
     );
+    // The detail screen's Reset Password action auto-resolves that
+    // employee's open request server-side without telling this screen -
+    // reload both queues so a stale, already-resolved row doesn't linger
+    // (and fail with "already resolved") after coming back from it.
+    await Future.wait([_loadIssues(), _loadResetRequests()]);
     if (changed == true) {
       await _search(_searchController.text);
     }
@@ -157,8 +205,8 @@ class _AdminEmployeesScreenState extends State<AdminEmployeesScreen> {
       body: RefreshIndicator(
         color: AppColors.primary,
         backgroundColor: AppColors.surface,
-        onRefresh: _loadIssues,
-        child: _isLoadingIssues
+        onRefresh: () => Future.wait([_loadIssues(), _loadResetRequests()]),
+        child: (_isLoadingIssues || _isLoadingResetRequests)
             ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
             : ListView(
                 padding: const EdgeInsets.all(24),
@@ -167,6 +215,23 @@ class _AdminEmployeesScreenState extends State<AdminEmployeesScreen> {
                     ErrorBanner(message: _issuesError!),
                     const SizedBox(height: 16),
                   ],
+                  if (_resetRequestsError != null) ...[
+                    ErrorBanner(message: _resetRequestsError!),
+                    const SizedBox(height: 16),
+                  ],
+                  DashboardSection(
+                    title: 'Password Reset Requests',
+                    count: _resetRequests.length,
+                    emptyText: 'No open password reset requests.',
+                    children: _resetRequests
+                        .map((request) => _PasswordResetTile(
+                              request: request,
+                              onTap: () => _openEmployeeById(request.employeeId),
+                              onDone: () => _resolveResetRequest(request),
+                            ))
+                        .toList(),
+                  ),
+                  const SizedBox(height: 16),
                   DashboardSection(
                     title: 'Reported Issues',
                     count: _issues.length,
@@ -235,6 +300,36 @@ class _AdminEmployeesScreenState extends State<AdminEmployeesScreen> {
           const SizedBox(height: 12),
         ],
       ],
+    );
+  }
+}
+
+class _PasswordResetTile extends StatelessWidget {
+  final PasswordResetRequest request;
+  final VoidCallback onTap;
+  final VoidCallback onDone;
+
+  const _PasswordResetTile({required this.request, required this.onTap, required this.onDone});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      onTap: onTap,
+      title: Text(
+        '${request.employeeName}  ·  ${request.employeeId}',
+        style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+      ),
+      subtitle: Text(
+        request.message ?? 'No message provided.',
+        style: const TextStyle(color: AppColors.textSecondary),
+      ),
+      trailing: OutlinedButton(
+        // Overrides the app theme's default minimumSize: Size.fromHeight(52) -
+        // see the identical note on _IssueTile below.
+        style: OutlinedButton.styleFrom(minimumSize: const Size(64, 36)),
+        onPressed: onDone,
+        child: const Text('Done'),
+      ),
     );
   }
 }

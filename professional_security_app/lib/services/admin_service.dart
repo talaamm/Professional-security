@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/active_employee_session.dart';
 import '../models/issue_report.dart';
+import '../models/password_reset_request.dart';
 import '../models/profile.dart';
 import '../models/unverified_session.dart';
 import '../models/work_session.dart';
@@ -219,6 +220,60 @@ class AdminService {
   Future<void> resolveIssue(String issueId) async {
     try {
       await _client.rpc('admin_resolve_issue', params: {'p_issue_id': issueId});
+    } on PostgrestException catch (e) {
+      throw AdminServiceException(e.message);
+    }
+  }
+
+  /// How many employee accounts (role = 'employee') are currently active -
+  /// for the admin Profile screen. Not "in a work session right now", just
+  /// "able to sign in and work" (status = 'active').
+  Future<int> fetchActiveEmployeeCount() async {
+    try {
+      final response = await _client
+          .from('profiles')
+          .select('employee_id')
+          .eq('role', 'employee')
+          .eq('status', 'active')
+          .count(CountOption.exact);
+      return response.count;
+    } on PostgrestException catch (e) {
+      throw AdminServiceException(e.message);
+    }
+  }
+
+  /// Resets [employeeId]'s password to the fixed default "123456" (see
+  /// db_files/phase7-password-reset.sql) and auto-resolves any open
+  /// password reset request for them.
+  Future<void> resetEmployeePassword(String employeeId) async {
+    try {
+      await _client.rpc('admin_reset_employee_password', params: {
+        'p_employee_id': employeeId,
+      });
+    } on PostgrestException catch (e) {
+      throw AdminServiceException(e.message);
+    }
+  }
+
+  /// Open password reset requests for the Employees tab, oldest first.
+  Future<List<PasswordResetRequest>> fetchOpenPasswordResetRequests() async {
+    try {
+      final data = await _client.rpc('admin_list_open_password_reset_requests');
+      return (data as List)
+          .map((row) => PasswordResetRequest.fromMap(row as Map<String, dynamic>))
+          .toList();
+    } on PostgrestException catch (e) {
+      throw AdminServiceException(e.message);
+    }
+  }
+
+  /// Dismisses a password reset request without resetting the password
+  /// (e.g. a duplicate, or it was already handled another way).
+  Future<void> resolvePasswordResetRequest(String requestId) async {
+    try {
+      await _client.rpc('admin_resolve_password_reset_request', params: {
+        'p_request_id': requestId,
+      });
     } on PostgrestException catch (e) {
       throw AdminServiceException(e.message);
     }

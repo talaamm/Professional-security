@@ -77,6 +77,25 @@ class AuthService {
 
   Future<void> logout() => _client.auth.signOut();
 
+  /// Submits a "please reset my password" request from the (unauthenticated)
+  /// Forgot Password screen. Goes through request_password_reset() - see
+  /// db_files/phase7-password-reset.sql - the only function in this app
+  /// callable while signed out, since a locked-out employee has no session
+  /// for report_issue() to resolve an employee_id from.
+  Future<void> requestPasswordReset({
+    required String employeeId,
+    String? message,
+  }) async {
+    try {
+      await _client.rpc('request_password_reset', params: {
+        'p_employee_id': employeeId,
+        'p_message': message,
+      });
+    } on PostgrestException catch (e) {
+      throw AuthServiceException(e.message);
+    }
+  }
+
   /// Changes the currently signed-in user's password. Supabase trusts the
   /// active session for this - no need to re-enter the current password.
   Future<void> changePassword(String newPassword) async {
