@@ -4,13 +4,17 @@ import '../config/theme.dart';
 import '../models/profile.dart';
 import '../models/work_session.dart';
 import '../services/admin_service.dart';
+import '../services/report_service.dart';
 import '../widgets/error_banner.dart';
 import 'admin_session_edit_screen.dart';
 
 /// Admin's view of one employee: their details, an activate/deactivate
-/// control, and their completed work sessions since they started. The
-/// month/year filter and report download are UI-only placeholders for now,
-/// per your instructions - wiring them up is a later task.
+/// control, a month picker + Generate Report button that builds a PDF
+/// (dates, workplace, start/end, duration, status) for the chosen month,
+/// and a separate month picker + List Work Sessions button that only
+/// loads/shows that month's sessions once pressed - editable/clickable
+/// the same way as before, just no longer loaded (and re-fetched on
+/// every visit) for the employee's entire history up front.
 ///
 /// Pops `true` if the employee's status was changed, so the search screen
 /// knows to refresh.
@@ -25,36 +29,80 @@ class AdminEmployeeDetailScreen extends StatefulWidget {
 
 class _AdminEmployeeDetailScreenState extends State<AdminEmployeeDetailScreen> {
   final _adminService = AdminService();
+  final _reportService = ReportService();
+
+  // The app's data starts in August 2026 - no earlier month has any
+  // sessions to report/list.
+  static final DateTime _minMonth = DateTime(2026, 8);
 
   late UserStatus _status = widget.employee.status;
-  List<WorkSession> _sessions = [];
-  bool _isLoadingSessions = true;
   bool _isUpdatingStatus = false;
   bool _changed = false;
   String? _error;
 
-  @override
-  void initState() {
-    super.initState();
-    _loadSessions();
+  late DateTime _reportMonth = _clampToMonthRange(
+    DateTime(DateTime.now().year, DateTime.now().month),
+  );
+  bool _isGeneratingReport = false;
+
+  late DateTime _sessionsMonth = _clampToMonthRange(
+    DateTime(DateTime.now().year, DateTime.now().month),
+  );
+  List<WorkSession> _sessions = [];
+  bool _isLoadingSessions = false;
+  bool _hasListedSessions = false;
+
+  static DateTime _clampToMonthRange(DateTime month) {
+    final maxMonth = DateTime(DateTime.now().year, DateTime.now().month);
+    if (month.isBefore(_minMonth)) return _minMonth;
+    if (month.isAfter(maxMonth)) return maxMonth;
+    return month;
   }
 
-  Future<void> _loadSessions() async {
+  void _changeSessionsMonth(int delta) {
+    final next = _clampToMonthRange(
+      DateTime(_sessionsMonth.year, _sessionsMonth.month + delta),
+    );
+    if (next == _sessionsMonth) return;
+    // The list on screen would otherwise still show the previous month's
+    // sessions under a now-different month selector - hide it until the
+    // admin explicitly lists this month too.
+    setState(() {
+      _sessionsMonth = next;
+      _hasListedSessions = false;
+      _sessions = [];
+    });
+  }
+
+  Future<void> _listSessions() async {
     setState(() {
       _isLoadingSessions = true;
       _error = null;
     });
 
     try {
-      final sessions = await _adminService.fetchEmployeeSessions(widget.employee.employeeId);
+      final sessions = await _adminService.fetchEmployeeSessionsForMonth(
+        employeeId: widget.employee.employeeId,
+        monthStart: _sessionsMonth,
+        monthEndExclusive: DateTime(_sessionsMonth.year, _sessionsMonth.month + 1),
+      );
       if (!mounted) return;
-      setState(() => _sessions = sessions);
+      setState(() {
+        _sessions = sessions;
+        _hasListedSessions = true;
+      });
     } catch (_) {
       if (!mounted) return;
       setState(() => _error = 'Could not load sessions. Pull down to retry.');
     } finally {
       if (mounted) setState(() => _isLoadingSessions = false);
     }
+  }
+
+  /// Pull-to-refresh: only re-fetches if a month is already listed - there
+  /// is nothing to refresh before the admin has pressed List Work Sessions.
+  Future<void> _refresh() async {
+    if (_hasListedSessions) await _listSessions();
   }
 
   Future<void> _confirmToggleStatus() async {
@@ -178,9 +226,43 @@ class _AdminEmployeeDetailScreenState extends State<AdminEmployeeDetailScreen> {
     }
   }
 
-  void _comingSoon(String feature) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text('$feature is coming soon.')));
+  void _changeReportMonth(int delta) {
+    final next = _clampToMonthRange(
+      DateTime(_reportMonth.year, _reportMonth.month + delta),
+    );
+    if (next == _reportMonth) return;
+    setState(() => _reportMonth = next);
+  }
+
+  Future<void> _generateReport() async {
+    setState(() {
+      _isGeneratingReport = true;
+      _error = null;
+    });
+
+    try {
+      final sessions = await _adminService.fetchEmployeeSessionsForMonth(
+        employeeId: widget.employee.employeeId,
+        monthStart: _reportMonth,
+        monthEndExclusive: DateTime(_reportMonth.year, _reportMonth.month + 1),
+      );
+      await _reportService.generateMonthlyReport(
+        employee: widget.employee,
+        month: _reportMonth,
+        sessions: sessions,
+      );
+    } on AdminServiceException catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.message);
+    } on ReportServiceException catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.message);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _error = 'Could not generate the report. Please try again.');
+    } finally {
+      if (mounted) setState(() => _isGeneratingReport = false);
+    }
   }
 
   Future<void> _editSession(WorkSession session) async {
@@ -188,7 +270,7 @@ class _AdminEmployeeDetailScreenState extends State<AdminEmployeeDetailScreen> {
       MaterialPageRoute(builder: (_) => AdminSessionEditScreen(session: session)),
     );
     if (changed == true) {
-      await _loadSessions();
+      await _listSessions();
       if (!mounted) return;
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('Session updated.')));
@@ -211,7 +293,7 @@ class _AdminEmployeeDetailScreenState extends State<AdminEmployeeDetailScreen> {
       body: RefreshIndicator(
           color: AppColors.primary,
           backgroundColor: AppColors.surface,
-          onRefresh: _loadSessions,
+          onRefresh: _refresh,
           child: ListView(
             padding: const EdgeInsets.all(24),
             children: [
@@ -302,37 +384,103 @@ class _AdminEmployeeDetailScreenState extends State<AdminEmployeeDetailScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => _comingSoon('Filtering by month'),
-                      icon: const Icon(Icons.calendar_month, size: 18),
-                      label: const Text('Month & Year'),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Text(
+                      'MONTHLY REPORT',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => _comingSoon('Downloading a report'),
-                      icon: const Icon(Icons.download, size: 18),
-                      label: const Text('Download'),
+                    const SizedBox(height: 4),
+                    _MonthSelector(
+                      month: _reportMonth,
+                      minMonth: _minMonth,
+                      onChange: _isGeneratingReport ? null : _changeReportMonth,
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 8),
+                    ElevatedButton.icon(
+                      onPressed: _isGeneratingReport ? null : _generateReport,
+                      icon: _isGeneratingReport
+                          ? const SizedBox(
+                              height: 16,
+                              width: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                            )
+                          : const Icon(Icons.picture_as_pdf_outlined, size: 18),
+                      label: Text(_isGeneratingReport ? 'Generating…' : 'Generate Report (PDF)'),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 16),
-              if (_isLoadingSessions)
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Text(
+                      'VIEW SESSIONS',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    _MonthSelector(
+                      month: _sessionsMonth,
+                      minMonth: _minMonth,
+                      onChange: _isLoadingSessions ? null : _changeSessionsMonth,
+                    ),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: _isLoadingSessions ? null : _listSessions,
+                      icon: _isLoadingSessions
+                          ? const SizedBox(
+                              height: 16,
+                              width: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                            )
+                          : const Icon(Icons.list_alt_outlined, size: 18),
+                      label: Text(_isLoadingSessions ? 'Loading…' : 'List Work Sessions'),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              if (!_hasListedSessions)
                 const Padding(
-                  padding: EdgeInsets.only(top: 24),
-                  child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+                  padding: EdgeInsets.only(top: 12),
+                  child: Center(
+                    child: Text(
+                      'Choose a month and tap "List Work Sessions" to view them.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: AppColors.textSecondary),
+                    ),
+                  ),
                 )
               else if (_sessions.isEmpty)
                 const Padding(
-                  padding: EdgeInsets.only(top: 24),
+                  padding: EdgeInsets.only(top: 12),
                   child: Center(
                     child: Text(
-                      'No completed sessions yet.',
+                      'No completed sessions for this month.',
                       style: TextStyle(color: AppColors.textSecondary),
                     ),
                   ),
@@ -441,6 +589,53 @@ class _SessionRow extends StatelessWidget {
         ],
       ),
       ),
+    );
+  }
+}
+
+class _MonthSelector extends StatelessWidget {
+  final DateTime month;
+  final DateTime minMonth;
+  final ValueChanged<int>? onChange;
+
+  const _MonthSelector({required this.month, required this.minMonth, this.onChange});
+
+  static const _monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+  ];
+
+  bool get _isMinMonth => month.year == minMonth.year && month.month == minMonth.month;
+
+  bool get _isMaxMonth {
+    final now = DateTime.now();
+    return month.year == now.year && month.month == now.month;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        IconButton(
+          icon: const Icon(Icons.chevron_left, color: AppColors.textPrimary),
+          tooltip: 'Previous month',
+          onPressed: (onChange == null || _isMinMonth) ? null : () => onChange!(-1),
+        ),
+        Text(
+          '${_monthNames[month.month - 1]} ${month.year}',
+          style: const TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        IconButton(
+          icon: const Icon(Icons.chevron_right, color: AppColors.textPrimary),
+          tooltip: 'Next month',
+          onPressed: (onChange == null || _isMaxMonth) ? null : () => onChange!(1),
+        ),
+      ],
     );
   }
 }

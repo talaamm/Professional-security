@@ -822,3 +822,77 @@ Next steps for you:
 4. Confirm the admin session-edit workplace dropdown (unrelated screen) still works normally.
 
 ✻ Churned for 8m 19s · done 10:26 PM
+
+---
+
+Summary
+
+What changed: The admin employee-detail screen's "Month & Year" and "Download" placeholders are now real — pick a month (Aug 2026 through the current month) and tap "Generate Report (PDF)" to get that employee's work sessions for the month as a downloadable PDF.
+
+New dependencies: pdf (builds the PDF) and printing (hands the generated file to the device's native share sheet — the standard, permission-free way to let a user save/send a file on Android/iOS, avoiding manual file-path/storage-permission handling per platform).
+
+Files changed:
+- lib/services/report_service.dart (new) — builds a one-employee/one-month PDF: header (name, ID, month, generated timestamp), a table of Date/Workplace/Start/End/Duration/Status per FR-036, and a total-sessions/total-duration summary line per FR-035. Says "No work sessions recorded for this month" instead of an empty table when there's nothing to report.
+- lib/services/admin_service.dart — added fetchEmployeeSessionsForMonth(), a plain date-range-filtered select (same work_sessions_select_admin RLS policy already used elsewhere), oldest-first for a natural report reading order.
+- lib/screens/admin_employee_detail_screen.dart — replaced the two placeholder buttons with a real < Month Year > selector (bounded to Aug 2026–current month, both arrows disable at their edge — when they'd be equal, as they currently are since today is Aug 31 2026, both disable) and a "Generate Report (PDF)" button that fetches the month's sessions and triggers the download.
+
+Verification: flutter analyze — 0 issues. Could not exercise the live GPS/DB/PDF-share flow (no device/emulator or Supabase execution access here) — in particular I couldn't confirm the native share sheet behaves as expected on a real Android/iOS device.
+
+Next steps for you:
+1. Run flutter pub get if you haven't already (done automatically here, but worth confirming on your machine).
+2. As admin, open an employee with some completed sessions this month, generate a report, and confirm the share sheet appears and the PDF's numbers match what you see in their session list.
+3. Try the boundary case (August 2026, since that's both the floor and the current month right now) — both arrows should be disabled with no way to navigate away from it.
+4. Try generating a report for a month with zero sessions — confirm it still produces a PDF saying so, rather than erroring.
+
+✻ Cooked for 7m 56s · done 11:26 PM
+
+---
+
+Summary
+
+1. Sessions list is now gated behind a month picker + button. The employee-detail screen no longer auto-loads (and re-fetches) the employee's entire session history on open. Below the existing "Generate Report" section there's now a matching "VIEW SESSIONS" section with its own < Month Year > picker (same Aug 2026–current bound) and a "List Work Sessions" button — nothing shows until it's pressed, and only that month's sessions load. Rows stay just as clickable/editable as before (tapping one still opens AdminSessionEditScreen), and editing a session re-lists the same month afterward. Changing the month clears the previously shown list until "List Work Sessions" is pressed again, so what's on screen never mismatches the selected month.
+
+2. Fixed Arabic/Hebrew showing as "XXXXX" in PDF reports. Root cause: the pdf package's default fonts (base14 Helvetica) only cover Latin script — any Arabic/Hebrew character (an employee's name, a workplace name) had no glyph to draw. Fix: bundled two OFL-licensed Noto fonts (assets/fonts/NotoSansArabic-Regular.ttf, NotoSansHebrew-Regular.ttf, ~950KB combined, license text included) as fallback fonts on the PDF's theme — English text keeps using the default font, Arabic/Hebrew text now renders with real glyphs. Also set right-to-left text direction on the employee-name line specifically when it contains Arabic/Hebrew characters, so RTL names read in the correct order (verified this detection logic with a standalone script against real Arabic/Hebrew/Latin/numeric samples — all passed).
+
+Files changed:
+- lib/screens/admin_employee_detail_screen.dart — new session-listing month picker/button/state; renamed the shared month-selector widget from _ReportMonthSelector to _MonthSelector since it's now used by both sections.
+- lib/services/report_service.dart — loads and wires in the two fallback fonts; RTL detection for the employee name line.
+- pubspec.yaml — registered the two font files as assets.
+- assets/fonts/ (new) — the two font files + their OFL license.
+
+Known limitation, disclosed rather than silently accepted: the session table's "Workplace" column (built via pdf's TableHelper.fromTextArray convenience helper) doesn't support per-cell text direction, so an Arabic/Hebrew workplace name in that column will now render with correct glyphs but not necessarily perfect right-to-left word order. Fixing that fully would mean rebuilding the table with hand-built per-cell widgets — flagging it since you said to keep this scoped; happy to do that rebuild if it matters to you.
+
+Verification: flutter analyze — 0 issues. Verified the RTL-detection regex against real Arabic/Hebrew/Latin/numeric sample strings via a standalone script (all passed). Could not exercise the live GPS/DB/PDF-share flow or actually visually inspect rendered Arabic/Hebrew glyphs (no device/emulator here).
+
+Next steps for you:
+1. Run flutter pub get (done here already, but confirm on your machine) — no new dependencies were added this time, just the two font assets.
+2. Generate a report for an employee whose name (or a workplace name) is in Arabic or Hebrew and confirm it now renders real letters instead of boxes.
+3. On an employee's detail screen, confirm sessions no longer appear until you pick a month and tap "List Work Sessions," and that editing a session still refreshes the list correctly.
+
+✻ Churned for 14m 50s · done 12:40 AM
+
+---
+
+34 minutes
+
+Summary
+
+Root cause found: this was not a table-structure problem at all — it was a genuine bug in the pdf package's Arabic shaping table (bidi_utils.dart), which maps every occurrence of a letter to one fixed presentation form instead of choosing isolated/initial/medial/final based on neighboring letters. Concretely: every م (MEEM) — an extremely common letter in Arabic names — always rendered in its isolated form, so any word where it needed to connect to a neighbor came out as disconnected, garbled loops. I confirmed this reproduces identically across two unrelated fonts (Noto Sans Arabic and Amiri), ruling out a font problem, and traced it to the exact wrong table entries in the dependency's source.
+
+Why not the table: since the bug lives in the shaping step itself (triggered by textDirection: rtl, independent of whether text sits in a table cell or a plain line), rebuilding the table wouldn't have touched it.
+
+The fix: implemented correct Arabic contextual shaping ourselves in pure Dart (lib/services/arabic_shaping.dart) rather than adding a native/FFI HarfBuzz dependency I found on pub.dev (rejected — brand new, 184 downloads, requires build-time C compilation; too fragile for this app). The shaping table was ported from the well-known Python arabic_reshaper library and verified byte-for-byte against it across 8 test strings (7 exact matches; the 8th differs only by an optional ligature I didn't implement, which is a legitimate stylistic choice, not an error). Then rendered through the actual PDF pipeline and visually confirmed correct for every case that was previously broken.
+
+Also fixed a second, smaller bug my own earlier fix introduced: setting RTL direction on the whole "Employee: {name} (ID: ...)" line reordered the English labels around it too. Now split into three separate widgets so only the name itself gets RTL/shaping treatment.
+
+Hebrew was re-verified as already correct (no analogous bug — Hebrew letters don't change shape by position, so the pdf package's existing reordering was fine) and left untouched.
+
+Verification: flutter analyze — 0 issues. Extensively verified outside the widget tree: standalone codepoint comparison against a trusted reference implementation, and multiple actual PDF renders rasterized and visually inspected (including the exact previously-broken cases: "مم" ,"مع" ,"عم" ,"دمحأ دمحم" — all now render correctly).
+
+Files changed: lib/services/arabic_shaping.dart (new), lib/services/report_service.dart (wired in the fix, fixed the Row-split bug). Temporary diagnostic scripts and test fonts used during investigation were cleaned up — nothing extraneous left in the repo.
+
+Next step for you: generate a report for an employee/workplace with an Arabic name containing a connecting letter (e.g. "دمحم") and confirm it now reads correctly — that's the exact case that was broken before.
+
+✻ Crunched for 43s · done 1:31 AM
+
+---

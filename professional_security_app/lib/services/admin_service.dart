@@ -120,6 +120,33 @@ class AdminService {
     }
   }
 
+  /// One employee's completed sessions within [monthStart, monthEndExclusive)
+  /// (started_at), oldest first - for the monthly PDF report. Same
+  /// work_sessions_select_admin RLS policy as fetchEmployeeSessions(); date
+  /// bounds sent in UTC, same convention as
+  /// WorkSessionService.fetchSessionsForMonth().
+  Future<List<WorkSession>> fetchEmployeeSessionsForMonth({
+    required String employeeId,
+    required DateTime monthStart,
+    required DateTime monthEndExclusive,
+  }) async {
+    try {
+      final data = await _client
+          .from('work_sessions')
+          .select('*, workplaces(name)')
+          .eq('employee_id', employeeId)
+          .not('ended_at', 'is', null)
+          .gte('started_at', monthStart.toUtc().toIso8601String())
+          .lt('started_at', monthEndExclusive.toUtc().toIso8601String())
+          .order('started_at');
+      return (data as List)
+          .map((row) => WorkSession.fromMap(row as Map<String, dynamic>))
+          .toList();
+    } on PostgrestException catch (e) {
+      throw AdminServiceException(e.message);
+    }
+  }
+
   /// Activates/deactivates an employee account. Blocked server-side for
   /// non-employee accounts and for an admin targeting their own account.
   Future<void> setEmployeeStatus({
