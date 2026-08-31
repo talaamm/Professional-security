@@ -5,10 +5,11 @@ import '../models/profile.dart';
 import 'admin_employees_screen.dart';
 import 'admin_home_screen.dart';
 import 'admin_profile_screen.dart';
+import 'admin_workplaces_screen.dart';
 
 /// Bottom-navigation shell for admins/super admins: Home, Employees,
-/// Profile. Each tab is a self-contained screen (own Scaffold/AppBar);
-/// this widget only owns which one is showing.
+/// Workplaces, Profile. Each tab is a self-contained screen (own
+/// Scaffold/AppBar); this widget only owns which one is showing.
 class AdminRootScreen extends StatefulWidget {
   final Profile profile;
 
@@ -26,6 +27,7 @@ class _AdminRootScreenState extends State<AdminRootScreen> {
     final pages = [
       AdminHomeScreen(profile: widget.profile),
       const AdminEmployeesScreen(),
+      AdminWorkplacesScreen(profile: widget.profile),
       AdminProfileScreen(profile: widget.profile),
     ];
 
@@ -48,6 +50,11 @@ class _AdminRootScreenState extends State<AdminRootScreen> {
             icon: Icon(Icons.people_outline),
             activeIcon: Icon(Icons.people),
             label: 'Employees',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.location_city_outlined),
+            activeIcon: Icon(Icons.location_city),
+            label: 'Workplaces',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),

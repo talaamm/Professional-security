@@ -167,6 +167,84 @@ class AdminService {
     }
   }
 
+  /// All workplaces (active and inactive), name-sorted, for the admin
+  /// Workplaces tab. Relies on the existing workplaces_select_admin RLS
+  /// policy.
+  Future<List<Workplace>> fetchAllWorkplaces() async {
+    try {
+      final data = await _client.from('workplaces').select().order('name');
+      return (data as List)
+          .map((row) => Workplace.fromMap(row as Map<String, dynamic>))
+          .toList();
+    } on PostgrestException catch (e) {
+      throw AdminServiceException(e.message);
+    }
+  }
+
+  /// Creates a workplace. Unlike every other admin write in this app,
+  /// there's no SECURITY DEFINER function here - workplaces_insert_admin
+  /// (db-schema-V2.sql section 19) already lets an admin insert directly,
+  /// as long as created_by is their own employee_id.
+  Future<void> createWorkplace({
+    required String name,
+    required double latitude,
+    required double longitude,
+    required int radiusMeters,
+    required String type,
+    required String createdBy,
+  }) async {
+    try {
+      await _client.from('workplaces').insert({
+        'name': name,
+        'latitude': latitude,
+        'longitude': longitude,
+        'radius_meters': radiusMeters,
+        'type': type,
+        'created_by': createdBy,
+      });
+    } on PostgrestException catch (e) {
+      throw AdminServiceException(e.message);
+    }
+  }
+
+  /// Updates a workplace's name/radius/type. [latitude]/[longitude] are
+  /// only included when the admin recalibrated at the current location -
+  /// omitting them leaves the stored coordinates untouched.
+  Future<void> updateWorkplace({
+    required String id,
+    required String name,
+    required int radiusMeters,
+    required String type,
+    double? latitude,
+    double? longitude,
+  }) async {
+    try {
+      await _client.from('workplaces').update({
+        'name': name,
+        'radius_meters': radiusMeters,
+        'type': type,
+        'latitude': ?latitude,
+        'longitude': ?longitude,
+      }).eq('id', id);
+    } on PostgrestException catch (e) {
+      throw AdminServiceException(e.message);
+    }
+  }
+
+  /// Activates/deactivates a workplace. There is no DELETE policy for this
+  /// table by design (db-schema-V2.sql section 19) - historical sessions
+  /// must keep referencing it, so "remove" always means deactivate.
+  Future<void> setWorkplaceStatus({required String id, required bool active}) async {
+    try {
+      await _client.from('workplaces').update({
+        'status': active ? 'active' : 'inactive',
+        'deactivated_at': active ? null : DateTime.now().toUtc().toIso8601String(),
+      }).eq('id', id);
+    } on PostgrestException catch (e) {
+      throw AdminServiceException(e.message);
+    }
+  }
+
   /// Corrects a completed session's start/end time and workplace/location.
   /// Either [workplaceId] or [manualLocationName] must be given. Marks both
   /// sides verified, by this admin - they're now vouching for the data.

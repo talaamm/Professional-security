@@ -793,3 +793,32 @@ Files changed: lib/screens/admin_employees_screen.dart (one method).
 Verification: flutter analyze — 0 issues. Please retest: reset a password from a request row, confirm the row disappears immediately on return (no need to tap Done at all), and confirm "Done" still works normally on a request you dismiss without resetting.
 
 ---
+
+
+Summary
+
+What changed: New "Workplaces" tab for admins — view/add/edit/deactivate workplaces, with GPS-based creation calibrated against device accuracy.
+
+No new SQL migration needed — the workplaces table already has RLS letting admins INSERT/UPDATE directly (workplaces_insert_admin/workplaces_update_admin in db-schema-V2.sql §19), unlike every other admin-managed table in this app. There's deliberately no DELETE policy ("Workplaces are deactivated instead"), so "remove" is always a status toggle, same as employees. All writes use the existing columns only, exactly as you asked (name, latitude, longitude, radius_meters, type, status, created_by, deactivated_at).
+
+Files changed:
+- lib/models/workplace.dart — extended (nullable) with latitude/longitude/radiusMeters/type/status, since it's the same DB entity the session-edit picker already used minimally.
+- lib/services/admin_service.dart — added fetchAllWorkplaces(), createWorkplace(), updateWorkplace(), setWorkplaceStatus() — plain Supabase table calls backed by the existing RLS.
+- lib/screens/workplace_form_screen.dart (new) — one screen for both Add and Edit:
+  - Add: auto-captures GPS on open (reusing LocationService), then asks for a name, Permanent/Temporary type, and an "Expected Radius" (default 100m, matching the schema default).
+  - Calibration: whenever a fresh GPS reading exists this session, the saved radius = expected radius + GPS accuracy, shown transparently ("Effective radius: 114m (100m expected + ±14m GPS accuracy)") — never hidden math. A warning appears if accuracy is worse than 30m, suggesting the admin move outdoors and recapture (a real concern across 2020–2026 phones, where accuracy can swing from ~5m outdoors to 50m+ indoors).
+  - Edit: shows the stored location as-is; an optional "Recalibrate at Current Location" button re-captures GPS inline (without hiding the form) if the admin is actually standing there; otherwise the radius field is just a plain editable number. Includes the Activate/Deactivate control.
+- lib/screens/admin_workplaces_screen.dart (new) — lists all workplaces (active + inactive) with a floating "Add Workplace" button; tapping a row opens it in edit mode.
+- lib/screens/admin_root_screen.dart — added the 4th "Workplaces" tab between Employees and Profile.
+
+Bug I caught and fixed before it shipped: my first draft of the recalibrate button reused the same _captureState as the initial full-screen GPS check, so tapping "Recalibrate" while editing would have blanked out the whole form (losing the visible name/radius/type fields) instead of just showing an inline spinner. Fixed so only the very first capture (adding a brand-new workplace) blocks the screen; every later capture is an inline button spinner.
+
+Verification: flutter analyze — 0 issues. Could not test the live GPS/DB flow (no device/emulator or Supabase execution access here).
+
+Next steps for you:
+1. As admin, open the new Workplaces tab, tap "Add Workplace" outdoors, confirm GPS captures and the effective-radius math looks right, create one.
+2. Edit it: change the name/radius without recalibrating (confirm location stays the same), then try "Recalibrate at Current Location" and confirm the form doesn't disappear.
+3. Deactivate it, confirm employees stop matching to it (existing find_nearby_workplaces already filters to status = 'active'), then reactivate.
+4. Confirm the admin session-edit workplace dropdown (unrelated screen) still works normally.
+
+✻ Churned for 8m 19s · done 10:26 PM
