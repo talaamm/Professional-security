@@ -114,6 +114,20 @@ class WorkSessionService {
     }
   }
 
+  /// Force-ends the caller's active session with no GPS check, for the
+  /// "logging out while working" warning flow (see
+  /// lib/widgets/logout_helper.dart). Always lands as
+  /// end_verification = 'manual', pending admin review - see
+  /// db_files/phase7-logout-ends-session.sql.
+  Future<WorkSession> endSessionForLogout() async {
+    try {
+      final data = await _client.rpc('end_work_session_for_logout');
+      return WorkSession.fromMap(data as Map<String, dynamic>);
+    } on PostgrestException catch (e) {
+      throw WorkSessionException(e.message);
+    }
+  }
+
   /// Ends the caller's active session. The backend checks [latitude]/
   /// [longitude] against the workplace recorded when that session started;
   /// if it doesn't match (or that workplace was never recognized), it

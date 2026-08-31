@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 import '../config/theme.dart';
 import '../models/profile.dart';
 import '../models/work_session.dart';
-import '../services/auth_service.dart';
 import '../services/issue_service.dart';
 import '../services/work_session_service.dart';
 import '../widgets/error_banner.dart';
+import '../widgets/logout_helper.dart';
 import 'end_work_screen.dart';
 import 'start_work_screen.dart';
 
@@ -27,7 +27,6 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _sessionService = WorkSessionService();
-  final _authService = AuthService();
   final _issueService = IssueService();
 
   WorkSession? _activeSession;
@@ -230,7 +229,7 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Log out',
-            onPressed: _authService.logout,
+            onPressed: () => handleLogout(context, widget.profile.employeeId),
           ),
         ],
       ),

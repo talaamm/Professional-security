@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../config/theme.dart';
 import '../models/profile.dart';
-import '../services/auth_service.dart';
 import '../services/language_service.dart';
 import '../services/work_session_service.dart';
+import '../widgets/logout_helper.dart';
 import 'change_password_screen.dart';
 
 /// Employee profile: their details, when their account was created, how
@@ -23,7 +23,6 @@ class EmployeeProfileScreen extends StatefulWidget {
 class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
   final _sessionService = WorkSessionService();
   final _languageService = LanguageService();
-  final _authService = AuthService();
 
   int? _completedSessions;
   AppLanguage _language = AppLanguage.english;
@@ -116,7 +115,7 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Log out',
-            onPressed: _authService.logout,
+            onPressed: () => handleLogout(context, widget.profile.employeeId),
           ),
         ],
       ),
