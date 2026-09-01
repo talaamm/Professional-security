@@ -8,6 +8,7 @@ import '../models/profile.dart';
 import '../screens/admin_root_screen.dart';
 import '../screens/login_screen.dart';
 import '../screens/root_screen.dart';
+import '../services/app_strings.dart';
 import '../services/auth_service.dart';
 
 enum _GateStatus { loading, loggedOut, loggedIn }
@@ -57,18 +58,13 @@ class _AuthGateState extends State<AuthGate> {
 
       if (profile == null) {
         await _authService.logout();
-        _setLoggedOut(
-          'We could not find your profile. Please contact an administrator.',
-        );
+        _setLoggedOut(AppStrings.t('auth_gate_profile_not_found'));
         return;
       }
 
       if (profile.status == UserStatus.inactive) {
         await _authService.logout();
-        _setLoggedOut(
-          'Sign-in failed: your account has been deactivated. '
-          'If you believe this is a mistake, please contact an administrator.',
-        );
+        _setLoggedOut(AppStrings.t('auth_gate_deactivated'));
         return;
       }
 
@@ -80,7 +76,7 @@ class _AuthGateState extends State<AuthGate> {
       });
     } catch (_) {
       await _authService.logout();
-      _setLoggedOut('Something went wrong. Please log in again.');
+      _setLoggedOut(AppStrings.t('auth_gate_generic_error'));
     }
   }
 

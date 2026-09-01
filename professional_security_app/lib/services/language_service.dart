@@ -14,23 +14,27 @@ extension AppLanguageX on AppLanguage {
     }
   }
 
+  /// Shown in the language picker in each language's own script, not
+  /// translated into the currently-active language - the standard
+  /// convention (a Hebrew speaker still looks for "English", not its
+  /// Hebrew translation).
   String get label {
     switch (this) {
       case AppLanguage.english:
         return 'English';
       case AppLanguage.arabic:
-        return 'Arabic';
+        return 'العربية';
       case AppLanguage.hebrew:
-        return 'Hebrew';
+        return 'עברית';
     }
   }
+
+  bool get isRtl => this == AppLanguage.arabic || this == AppLanguage.hebrew;
 }
 
-/// Stores the employee's chosen display language on this device. This is
-/// just a preference for now - the app doesn't translate its screens yet,
-/// per your instructions ("we will modify the languages in the app
-/// later"). Local device storage is enough for a preference nothing reads
-/// yet; there's nothing here to sync across devices.
+/// Stores the employee's chosen display language on this device. Read by
+/// AppStrings at startup and whenever the Profile tab's language picker
+/// changes it.
 class LanguageService {
   static const _prefsKey = 'app_language';
 

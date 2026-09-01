@@ -1,17 +1,15 @@
 import 'package:flutter/material.dart';
 
 import '../config/theme.dart';
-import '../services/language_service.dart';
+import '../services/app_strings.dart';
 
 /// Bottom sheet to pick a display language, shared by the employee and
-/// admin Profile screens. Only remembers the choice on this device
-/// (LanguageService) - nothing in the app reads it yet.
-Future<void> pickLanguage({
-  required BuildContext context,
-  required AppLanguage current,
-  required ValueChanged<AppLanguage> onChanged,
-}) async {
-  final languageService = LanguageService();
+/// admin Profile screens. AppStrings.setLanguage() persists the choice
+/// and triggers the app-wide rebuild (see main.dart's ValueListenableBuilder
+/// on AppStrings.current) - so callers don't need to track their own copy
+/// of the current language, it's read directly from AppStrings.current.
+Future<void> pickLanguage({required BuildContext context}) async {
+  final current = AppStrings.current.value;
 
   final selected = await showModalBottomSheet<AppLanguage>(
     context: context,
@@ -23,11 +21,11 @@ Future<void> pickLanguage({
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Padding(
-              padding: EdgeInsets.all(16),
+            Padding(
+              padding: const EdgeInsets.all(16),
               child: Text(
-                'Choose Language',
-                style: TextStyle(
+                AppStrings.t('language_picker_title'),
+                style: const TextStyle(
                   color: AppColors.textPrimary,
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
@@ -49,11 +47,5 @@ Future<void> pickLanguage({
 
   if (selected == null || selected == current) return;
 
-  await languageService.setLanguage(selected);
-  onChanged(selected);
-
-  if (!context.mounted) return;
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text('Language set to ${selected.label}. Full translation coming soon.')),
-  );
+  await AppStrings.setLanguage(selected);
 }

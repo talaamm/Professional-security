@@ -896,3 +896,45 @@ Next step for you: generate a report for an employee/workplace with an Arabic na
 ✻ Crunched for 43s · done 1:31 AM
 
 ---
+
+What changed
+
+- Removed the employee-side "Reports" nav tab and deleted the now-unused placeholder reports_screen.dart.
+- Added a "Generate Report (PDF)" button to the Sessions (History) tab. It reuses the already-loaded _sessions list for the currently selected month and calls the existing ReportService.generateMonthlyReport() — the same PDF generator (with Arabic/Hebrew support) already used by the admin side — passing widget.profile as the employee, so only the logged-in user's own sessions (already scoped by the work_sessions_select_own RLS policy / list_my_sessions_for_month()) go into the PDF.
+
+Files changed
+
+- lib/screens/root_screen.dart — removed Reports tab/import/nav item
+- lib/screens/history_screen.dart — added report button, _generateReport(), _isGeneratingReport state
+- lib/screens/reports_screen.dart — deleted (unused placeholder)
+
+Verification
+
+flutter analyze — 0 issues. No backend/schema changes were needed; no new dependencies added (reused the existing pdf/printing setup). Could not exercise the live share-sheet flow (no device/emulator here).
+
+Next step: run the app, open Sessions, pick a month, tap "Generate Report (PDF)" and confirm the share sheet appears with a PDF matching that month's session list.
+
+✻ Worked for 4m 37s · done 4:07 PM
+
+---
+
+Summary
+
+Architecture (lightweight, JSON-based, no new dependencies):
+- assets/lang/{en,ar,he}.json — flat key→text dictionaries (270 keys each, verified identical key sets across all three), plus months_full/months_short/weekdays_short arrays for date formatting.
+- lib/services/app_strings.dart (new) — loads the right JSON file, exposes AppStrings.t(key, {args}) for lookups with {placeholder} substitution, AppStrings.list(key) for the date arrays, and AppStrings.current (a ValueNotifier<AppLanguage>) that drives app-wide rebuilds.
+- RTL: main.dart wraps the app in a Directionality widget keyed off the selected language — no flutter_localizations dependency needed, since Directionality alone mirrors every Material widget (Rows, TextFields, icons, AppBar back button, etc.).
+- Reused your existing AppLanguage enum/LanguageService (from the earlier phase) rather than inventing a new one — just added isRtl and switched .label to show each language in its own script (English / תירבע / ةيبرعلا).
+
+What changed:
+- Every screen's UI text — labels, buttons, dialogs, snackbars, validators, nav bars — now goes through AppStrings.t().
+- The Profile tab's language picker (pickLanguage()) now actually switches the app language instantly and persists it — no more "coming soon" placeholder.
+- WorkSession/UnverifiedSession models were not touched — their internal English status strings ('Verified', 'Pending review', etc.) still drive color logic; translation happens only at display time via small mapping helpers, so nothing structural was at risk.
+
+Deliberately out of scope (disclosed, not silently skipped): the PDF report content (report_service.dart) stays in English — it's a separate downloaded document, not part of the in-app UI toggle. Raw error messages from Supabase/service exceptions (e.message) also stay in English, since translating backend/DB error text would require a much larger mapping layer.
+
+Next step: run the app, switch languages from Profile on each side (employee and admin), and confirm RTL layout (mirrored rows, right-aligned text) looks right for Arabic and Hebrew across a few screens — I couldn't visually verify RTL rendering without a device/emulator here.
+
+✻ Churned for 33m 35s · done 5:17 PM
+
+---

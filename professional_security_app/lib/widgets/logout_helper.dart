@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../config/theme.dart';
+import '../services/app_strings.dart';
 import '../services/auth_service.dart';
 import '../services/work_session_service.dart';
 
@@ -26,19 +27,18 @@ Future<void> handleLogout(BuildContext context, String employeeId) async {
     context: context,
     builder: (context) => AlertDialog(
       backgroundColor: AppColors.surface,
-      title: const Text(
-        'End your work session?',
-        style: TextStyle(color: AppColors.textPrimary),
+      title: Text(
+        AppStrings.t('logout_confirm_title'),
+        style: const TextStyle(color: AppColors.textPrimary),
       ),
-      content: const Text(
-        "You're still working. Logging out now will end your current work "
-        'session and mark it for admin review.',
-        style: TextStyle(color: AppColors.textSecondary),
+      content: Text(
+        AppStrings.t('logout_confirm_desc'),
+        style: const TextStyle(color: AppColors.textSecondary),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('Cancel'),
+          child: Text(AppStrings.t('common_cancel')),
         ),
         ElevatedButton(
           style: ElevatedButton.styleFrom(
@@ -46,7 +46,7 @@ Future<void> handleLogout(BuildContext context, String employeeId) async {
             foregroundColor: Colors.white,
           ),
           onPressed: () => Navigator.of(context).pop(true),
-          child: const Text('Log Out & End Session'),
+          child: Text(AppStrings.t('logout_confirm_button')),
         ),
       ],
     ),
@@ -61,14 +61,12 @@ Future<void> handleLogout(BuildContext context, String employeeId) async {
   } on WorkSessionException catch (e) {
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Could not end your session: ${e.message}')),
+      SnackBar(content: Text(AppStrings.t('logout_error', {'reason': e.message}))),
     );
   } catch (_) {
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Could not end your session. Please try again.'),
-      ),
+      SnackBar(content: Text(AppStrings.t('logout_error_generic'))),
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../config/theme.dart';
+import '../services/app_strings.dart';
 import '../services/auth_service.dart';
 import '../widgets/error_banner.dart';
 
@@ -45,11 +46,11 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       if (!mounted) return;
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Password updated.')));
+          .showSnackBar(SnackBar(content: Text(AppStrings.t('change_password_success'))));
     } on AuthServiceException catch (e) {
       setState(() => _error = e.message);
     } catch (_) {
-      setState(() => _error = 'Something went wrong. Please try again.');
+      setState(() => _error = AppStrings.t('common_something_wrong'));
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -59,7 +60,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Change Password')),
+      appBar: AppBar(title: Text(AppStrings.t('change_password_title'))),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -72,8 +73,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   ErrorBanner(message: _error!),
                   const SizedBox(height: 16),
                 ],
-                const Text('NEW PASSWORD',
-                    style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                Text(AppStrings.t('change_password_new_section'),
+                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _passwordController,
@@ -91,14 +92,14 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                     ),
                   ),
                   validator: (v) {
-                    if (v == null || v.isEmpty) return 'Password is required';
-                    if (v.length < 6) return 'Password must be at least 6 characters';
+                    if (v == null || v.isEmpty) return AppStrings.t('common_password_required');
+                    if (v.length < 6) return AppStrings.t('common_password_too_short');
                     return null;
                   },
                 ),
                 const SizedBox(height: 16),
-                const Text('CONFIRM NEW PASSWORD',
-                    style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                Text(AppStrings.t('change_password_confirm_section'),
+                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _confirmController,
@@ -117,8 +118,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                     ),
                   ),
                   validator: (v) {
-                    if (v == null || v.isEmpty) return 'Please confirm your password';
-                    if (v != _passwordController.text) return 'Passwords do not match';
+                    if (v == null || v.isEmpty) return AppStrings.t('register_confirm_password_required');
+                    if (v != _passwordController.text) return AppStrings.t('common_passwords_mismatch');
                     return null;
                   },
                 ),
@@ -131,7 +132,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                           width: 22,
                           child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
                         )
-                      : const Text('UPDATE PASSWORD'),
+                      : Text(AppStrings.t('change_password_button')),
                 ),
               ],
             ),

@@ -2,16 +2,15 @@ import 'package:flutter/material.dart';
 
 import '../config/theme.dart';
 import '../models/profile.dart';
-import '../services/language_service.dart';
+import '../services/app_strings.dart';
 import '../services/work_session_service.dart';
 import '../widgets/language_picker.dart';
 import '../widgets/logout_helper.dart';
 import 'change_password_screen.dart';
 
 /// Employee profile: their details, when their account was created, how
-/// many sessions they've completed, a language preference (not wired to
-/// any translation yet - just remembered for later), and a change-password
-/// action.
+/// many sessions they've completed, a language preference, and a
+/// change-password action.
 class EmployeeProfileScreen extends StatefulWidget {
   final Profile profile;
 
@@ -23,10 +22,8 @@ class EmployeeProfileScreen extends StatefulWidget {
 
 class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
   final _sessionService = WorkSessionService();
-  final _languageService = LanguageService();
 
   int? _completedSessions;
-  AppLanguage _language = AppLanguage.english;
   bool _isLoading = true;
 
   @override
@@ -38,15 +35,9 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
   Future<void> _load() async {
     setState(() => _isLoading = true);
     try {
-      final results = await Future.wait([
-        _sessionService.countCompletedSessions(widget.profile.employeeId),
-        _languageService.getLanguage(),
-      ]);
+      final count = await _sessionService.countCompletedSessions(widget.profile.employeeId);
       if (!mounted) return;
-      setState(() {
-        _completedSessions = results[0] as int;
-        _language = results[1] as AppLanguage;
-      });
+      setState(() => _completedSessions = count);
     } catch (_) {
       // Non-critical info; leave counters blank rather than blocking the page.
     } finally {
@@ -54,16 +45,10 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
     }
   }
 
-  Future<void> _pickLanguage() => pickLanguage(
-        context: context,
-        current: _language,
-        onChanged: (language) => setState(() => _language = language),
-      );
+  Future<void> _pickLanguage() => pickLanguage(context: context);
 
   String _formatDate(DateTime dt) {
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-    ];
+    final months = AppStrings.list('months_short');
     return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
   }
 
@@ -72,11 +57,11 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Profile'),
+        title: Text(AppStrings.t('profile_title')),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
-            tooltip: 'Log out',
+            tooltip: AppStrings.t('common_log_out'),
             onPressed: () => handleLogout(context, widget.profile.employeeId),
           ),
         ],
@@ -108,17 +93,17 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Employee ID: ${widget.profile.employeeId}',
+                    AppStrings.t('common_employee_id', {'id': widget.profile.employeeId}),
                     style: const TextStyle(color: AppColors.textSecondary),
                   ),
                   const Divider(height: 28, color: AppColors.background),
                   _InfoRow(
-                    label: 'MEMBER SINCE',
+                    label: AppStrings.t('profile_member_since'),
                     value: _formatDate(widget.profile.createdAt),
                   ),
                   const SizedBox(height: 16),
                   _InfoRow(
-                    label: 'COMPLETED SESSIONS',
+                    label: AppStrings.t('profile_completed_sessions'),
                     value: _isLoading ? '—' : '${_completedSessions ?? 0}',
                   ),
                 ],
@@ -127,15 +112,15 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
             const SizedBox(height: 24),
             _ProfileActionTile(
               icon: Icons.language,
-              title: 'Language',
-              subtitle: _language.label,
+              title: AppStrings.t('profile_language'),
+              subtitle: AppStrings.current.value.label,
               onTap: _pickLanguage,
             ),
             const SizedBox(height: 12),
             _ProfileActionTile(
               icon: Icons.lock_outline,
-              title: 'Change Password',
-              subtitle: 'Update your account password',
+              title: AppStrings.t('profile_change_password'),
+              subtitle: AppStrings.t('profile_change_password_subtitle'),
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
               ),

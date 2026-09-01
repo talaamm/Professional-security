@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../config/theme.dart';
 import '../models/unverified_session.dart';
 import '../services/admin_service.dart';
+import '../services/app_strings.dart';
 import '../widgets/error_banner.dart';
 import '../widgets/reason_dialog.dart';
 
@@ -73,7 +74,7 @@ class _SessionReviewScreenState extends State<SessionReviewScreen> {
     } on AdminServiceException catch (e) {
       setState(() => _error = e.message);
     } catch (_) {
-      setState(() => _error = 'Something went wrong. Please try again.');
+      setState(() => _error = AppStrings.t('common_something_wrong'));
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -82,9 +83,9 @@ class _SessionReviewScreenState extends State<SessionReviewScreen> {
   Future<void> _confirmDelete() async {
     final reason = await showRequiredReasonDialog(
       context: context,
-      title: 'Delete this session?',
-      message: 'This permanently removes the session. This cannot be undone.',
-      confirmLabel: 'Delete',
+      title: AppStrings.t('session_edit_delete_dialog_title'),
+      message: AppStrings.t('session_edit_delete_dialog_desc'),
+      confirmLabel: AppStrings.t('session_edit_delete_confirm'),
     );
     if (reason == null) return;
 
@@ -100,7 +101,7 @@ class _SessionReviewScreenState extends State<SessionReviewScreen> {
     } on AdminServiceException catch (e) {
       setState(() => _error = e.message);
     } catch (_) {
-      setState(() => _error = 'Something went wrong. Please try again.');
+      setState(() => _error = AppStrings.t('common_something_wrong'));
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -118,7 +119,7 @@ class _SessionReviewScreenState extends State<SessionReviewScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Review Session')),
+      appBar: AppBar(title: Text(AppStrings.t('session_review_title'))),
       body: ListView(
         padding: const EdgeInsets.all(24),
         children: [
@@ -131,7 +132,7 @@ class _SessionReviewScreenState extends State<SessionReviewScreen> {
             ),
           ),
           Text(
-            'Employee ID: ${session.employeeId}',
+            AppStrings.t('common_employee_id', {'id': session.employeeId}),
             style: const TextStyle(color: AppColors.textSecondary),
           ),
           const SizedBox(height: 16),
@@ -145,9 +146,18 @@ class _SessionReviewScreenState extends State<SessionReviewScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _DetailRow(label: 'Workplace', value: session.workplaceLabel),
-                _DetailRow(label: 'Started', value: _formatDateTime(session.startedAt)),
-                _DetailRow(label: 'Ended', value: _formatDateTime(session.endedAt)),
+                _DetailRow(
+                  label: AppStrings.t('session_review_workplace'),
+                  value: session.workplaceName != null || session.manualLocationName != null
+                      ? session.workplaceLabel
+                      : AppStrings.t('workplace_unknown'),
+                ),
+                _DetailRow(
+                    label: AppStrings.t('session_review_started'),
+                    value: _formatDateTime(session.startedAt)),
+                _DetailRow(
+                    label: AppStrings.t('session_review_ended'),
+                    value: _formatDateTime(session.endedAt)),
               ],
             ),
           ),
@@ -165,7 +175,10 @@ class _SessionReviewScreenState extends State<SessionReviewScreen> {
                 const Icon(Icons.warning_amber_rounded, color: AppColors.secondary, size: 20),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text(session.reason, style: const TextStyle(color: AppColors.secondary)),
+                  child: Text(
+                    AppStrings.unverifiedReason(session.startNeedsReview, session.endNeedsReview),
+                    style: const TextStyle(color: AppColors.secondary),
+                  ),
                 ),
               ],
             ),
@@ -176,37 +189,37 @@ class _SessionReviewScreenState extends State<SessionReviewScreen> {
             const SizedBox(height: 16),
           ],
           if (session.startNeedsReview) ...[
-            const Text('EMPLOYEE\'S CLAIMED START LOCATION',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+            Text(AppStrings.t('session_review_start_location_section'),
+                style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
             const SizedBox(height: 8),
             TextField(
               controller: _startController,
               style: const TextStyle(color: AppColors.textPrimary),
-              decoration: const InputDecoration(hintText: 'e.g. Wedding Hall - Beit Hanina'),
+              decoration: InputDecoration(hintText: AppStrings.t('common_location_name_hint')),
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: 16),
           ],
           if (session.endNeedsReview) ...[
-            const Text('EMPLOYEE\'S CLAIMED END LOCATION',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+            Text(AppStrings.t('session_review_end_location_section'),
+                style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
             const SizedBox(height: 8),
             TextField(
               controller: _endController,
               style: const TextStyle(color: AppColors.textPrimary),
-              decoration: const InputDecoration(hintText: 'e.g. Wedding Hall - Beit Hanina'),
+              decoration: InputDecoration(hintText: AppStrings.t('common_location_name_hint')),
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: 16),
           ],
-          const Text('NOTE (OPTIONAL)',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+          Text(AppStrings.t('session_review_note_section'),
+              style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
           const SizedBox(height: 8),
           TextField(
             controller: _noteController,
             style: const TextStyle(color: AppColors.textPrimary),
             maxLines: 3,
-            decoration: const InputDecoration(hintText: 'Reason for this correction'),
+            decoration: InputDecoration(hintText: AppStrings.t('session_review_note_hint')),
           ),
           const SizedBox(height: 24),
           ElevatedButton(
@@ -217,7 +230,7 @@ class _SessionReviewScreenState extends State<SessionReviewScreen> {
                     width: 22,
                     child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
                   )
-                : const Text('VERIFY SESSION'),
+                : Text(AppStrings.t('session_review_verify_button')),
           ),
           const SizedBox(height: 24),
           const Divider(color: AppColors.surface),
@@ -228,7 +241,7 @@ class _SessionReviewScreenState extends State<SessionReviewScreen> {
               foregroundColor: AppColors.error,
               side: const BorderSide(color: AppColors.error),
             ),
-            child: const Text('DELETE SESSION'),
+            child: Text(AppStrings.t('session_review_delete_button')),
           ),
         ],
       ),

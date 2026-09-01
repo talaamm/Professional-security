@@ -4,6 +4,7 @@ import '../config/theme.dart';
 import '../models/profile.dart';
 import '../models/work_session.dart';
 import '../services/admin_service.dart';
+import '../services/app_strings.dart';
 import '../services/report_service.dart';
 import '../widgets/error_banner.dart';
 import 'admin_session_edit_screen.dart';
@@ -93,7 +94,7 @@ class _AdminEmployeeDetailScreenState extends State<AdminEmployeeDetailScreen> {
       });
     } catch (_) {
       if (!mounted) return;
-      setState(() => _error = 'Could not load sessions. Pull down to retry.');
+      setState(() => _error = AppStrings.t('admin_detail_could_not_load_sessions'));
     } finally {
       if (mounted) setState(() => _isLoadingSessions = false);
     }
@@ -112,19 +113,21 @@ class _AdminEmployeeDetailScreenState extends State<AdminEmployeeDetailScreen> {
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.surface,
         title: Text(
-          activating ? 'Activate this account?' : 'Deactivate this account?',
+          activating
+              ? AppStrings.t('admin_detail_activate_dialog_title')
+              : AppStrings.t('admin_detail_deactivate_dialog_title'),
           style: const TextStyle(color: AppColors.textPrimary),
         ),
         content: Text(
           activating
-              ? '${widget.employee.fullName} will be able to sign in and start work sessions again.'
-              : '${widget.employee.fullName} will no longer be able to sign in or start work sessions.',
+              ? AppStrings.t('admin_detail_activate_dialog_desc', {'name': widget.employee.fullName})
+              : AppStrings.t('admin_detail_deactivate_dialog_desc', {'name': widget.employee.fullName}),
           style: const TextStyle(color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            child: Text(AppStrings.t('common_cancel')),
           ),
           ElevatedButton(
             style: activating
@@ -134,7 +137,9 @@ class _AdminEmployeeDetailScreenState extends State<AdminEmployeeDetailScreen> {
                     foregroundColor: Colors.white,
                   ),
             onPressed: () => Navigator.of(context).pop(true),
-            child: Text(activating ? 'Activate' : 'Deactivate'),
+            child: Text(activating
+                ? AppStrings.t('admin_detail_activate_confirm')
+                : AppStrings.t('admin_detail_deactivate_confirm')),
           ),
         ],
       ),
@@ -150,20 +155,18 @@ class _AdminEmployeeDetailScreenState extends State<AdminEmployeeDetailScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.surface,
-        title: const Text(
-          'Reset this password?',
-          style: TextStyle(color: AppColors.textPrimary),
+        title: Text(
+          AppStrings.t('admin_detail_reset_dialog_title'),
+          style: const TextStyle(color: AppColors.textPrimary),
         ),
         content: Text(
-          "${widget.employee.fullName}'s password will be reset to the temporary "
-          'password "123456". Let them know so they can sign in and change it from '
-          'their Profile.',
+          AppStrings.t('admin_detail_reset_dialog_desc', {'name': widget.employee.fullName}),
           style: const TextStyle(color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            child: Text(AppStrings.t('common_cancel')),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -171,7 +174,7 @@ class _AdminEmployeeDetailScreenState extends State<AdminEmployeeDetailScreen> {
               foregroundColor: Colors.white,
             ),
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Reset Password'),
+            child: Text(AppStrings.t('admin_detail_reset_confirm')),
           ),
         ],
       ),
@@ -189,12 +192,12 @@ class _AdminEmployeeDetailScreenState extends State<AdminEmployeeDetailScreen> {
       await _adminService.resetEmployeePassword(widget.employee.employeeId);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password reset to the temporary password "123456".')),
+        SnackBar(content: Text(AppStrings.t('admin_detail_password_reset_snackbar'))),
       );
     } on AdminServiceException catch (e) {
       setState(() => _error = e.message);
     } catch (_) {
-      setState(() => _error = 'Something went wrong. Please try again.');
+      setState(() => _error = AppStrings.t('common_something_wrong'));
     }
   }
 
@@ -215,12 +218,14 @@ class _AdminEmployeeDetailScreenState extends State<AdminEmployeeDetailScreen> {
         _changed = true;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(activate ? 'Account activated.' : 'Account deactivated.')),
+        SnackBar(content: Text(activate
+            ? AppStrings.t('admin_detail_account_activated')
+            : AppStrings.t('admin_detail_account_deactivated'))),
       );
     } on AdminServiceException catch (e) {
       setState(() => _error = e.message);
     } catch (_) {
-      setState(() => _error = 'Something went wrong. Please try again.');
+      setState(() => _error = AppStrings.t('common_something_wrong'));
     } finally {
       if (mounted) setState(() => _isUpdatingStatus = false);
     }
@@ -259,7 +264,7 @@ class _AdminEmployeeDetailScreenState extends State<AdminEmployeeDetailScreen> {
       setState(() => _error = e.message);
     } catch (_) {
       if (!mounted) return;
-      setState(() => _error = 'Could not generate the report. Please try again.');
+      setState(() => _error = AppStrings.t('history_report_error_generic'));
     } finally {
       if (mounted) setState(() => _isGeneratingReport = false);
     }
@@ -273,7 +278,7 @@ class _AdminEmployeeDetailScreenState extends State<AdminEmployeeDetailScreen> {
       await _listSessions();
       if (!mounted) return;
       ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Session updated.')));
+          .showSnackBar(SnackBar(content: Text(AppStrings.t('admin_detail_session_updated'))));
     }
   }
 
@@ -330,7 +335,7 @@ class _AdminEmployeeDetailScreenState extends State<AdminEmployeeDetailScreen> {
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            isActive ? 'Active' : 'Inactive',
+                            isActive ? AppStrings.t('common_active') : AppStrings.t('common_inactive'),
                             style: TextStyle(
                               color: isActive ? AppColors.success : AppColors.error,
                               fontSize: 11,
@@ -342,7 +347,7 @@ class _AdminEmployeeDetailScreenState extends State<AdminEmployeeDetailScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Employee ID: ${widget.employee.employeeId}',
+                      AppStrings.t('common_employee_id', {'id': widget.employee.employeeId}),
                       style: const TextStyle(color: AppColors.textSecondary),
                     ),
                   ],
@@ -366,17 +371,19 @@ class _AdminEmployeeDetailScreenState extends State<AdminEmployeeDetailScreen> {
                           color: isActive ? Colors.white : Colors.black,
                         ),
                       )
-                    : Text(isActive ? 'DEACTIVATE ACCOUNT' : 'ACTIVATE ACCOUNT'),
+                    : Text(isActive
+                        ? AppStrings.t('admin_detail_deactivate')
+                        : AppStrings.t('admin_detail_activate')),
               ),
               const SizedBox(height: 12),
               OutlinedButton(
                 onPressed: _confirmResetPassword,
-                child: const Text('RESET PASSWORD'),
+                child: Text(AppStrings.t('admin_detail_reset_password')),
               ),
               const SizedBox(height: 28),
-              const Text(
-                'WORK SESSIONS',
-                style: TextStyle(
+              Text(
+                AppStrings.t('admin_detail_work_sessions_section'),
+                style: const TextStyle(
                   color: AppColors.textSecondary,
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
@@ -393,9 +400,9 @@ class _AdminEmployeeDetailScreenState extends State<AdminEmployeeDetailScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text(
-                      'MONTHLY REPORT',
-                      style: TextStyle(
+                    Text(
+                      AppStrings.t('admin_detail_monthly_report_section'),
+                      style: const TextStyle(
                         color: AppColors.textSecondary,
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
@@ -418,7 +425,9 @@ class _AdminEmployeeDetailScreenState extends State<AdminEmployeeDetailScreen> {
                               child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
                             )
                           : const Icon(Icons.picture_as_pdf_outlined, size: 18),
-                      label: Text(_isGeneratingReport ? 'Generating…' : 'Generate Report (PDF)'),
+                      label: Text(_isGeneratingReport
+                          ? AppStrings.t('admin_detail_generating')
+                          : AppStrings.t('admin_detail_generate_report')),
                     ),
                   ],
                 ),
@@ -433,9 +442,9 @@ class _AdminEmployeeDetailScreenState extends State<AdminEmployeeDetailScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text(
-                      'VIEW SESSIONS',
-                      style: TextStyle(
+                    Text(
+                      AppStrings.t('admin_detail_view_sessions_section'),
+                      style: const TextStyle(
                         color: AppColors.textSecondary,
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
@@ -458,30 +467,32 @@ class _AdminEmployeeDetailScreenState extends State<AdminEmployeeDetailScreen> {
                               child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
                             )
                           : const Icon(Icons.list_alt_outlined, size: 18),
-                      label: Text(_isLoadingSessions ? 'Loading…' : 'List Work Sessions'),
+                      label: Text(_isLoadingSessions
+                          ? AppStrings.t('admin_detail_loading')
+                          : AppStrings.t('admin_detail_list_sessions')),
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 16),
               if (!_hasListedSessions)
-                const Padding(
-                  padding: EdgeInsets.only(top: 12),
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
                   child: Center(
                     child: Text(
-                      'Choose a month and tap "List Work Sessions" to view them.',
+                      AppStrings.t('admin_detail_choose_month_prompt'),
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: AppColors.textSecondary),
+                      style: const TextStyle(color: AppColors.textSecondary),
                     ),
                   ),
                 )
               else if (_sessions.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.only(top: 12),
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
                   child: Center(
                     child: Text(
-                      'No completed sessions for this month.',
-                      style: TextStyle(color: AppColors.textSecondary),
+                      AppStrings.t('admin_detail_no_completed_sessions'),
+                      style: const TextStyle(color: AppColors.textSecondary),
                     ),
                   ),
                 )
@@ -506,11 +517,10 @@ class _SessionRow extends StatelessWidget {
 
   const _SessionRow({required this.session, required this.onTap});
 
-  static const _months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-  ];
-
-  String _formatDate(DateTime dt) => '${_months[dt.month - 1]} ${dt.day}, ${dt.year}';
+  String _formatDate(DateTime dt) {
+    final months = AppStrings.list('months_short');
+    return '${months[dt.month - 1]} ${dt.day}, ${dt.year}';
+  }
 
   String _formatTime(DateTime dt) {
     final hour = dt.hour.toString().padLeft(2, '0');
@@ -527,6 +537,10 @@ class _SessionRow extends StatelessWidget {
 
   Color _statusColor(String status) {
     return status == 'Verified' ? AppColors.success : AppColors.secondary;
+  }
+
+  String _statusLabel(String status) {
+    return status == 'Verified' ? AppStrings.t('status_verified') : AppStrings.t('status_unverified');
   }
 
   @override
@@ -565,7 +579,7 @@ class _SessionRow extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  status,
+                  _statusLabel(status),
                   style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.bold),
                 ),
               ),
@@ -573,7 +587,9 @@ class _SessionRow extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            session.workplaceLabel,
+            session.workplaceName != null || session.manualLocationName != null
+                ? session.workplaceLabel
+                : AppStrings.t('workplace_unknown'),
             style: const TextStyle(
               color: AppColors.textPrimary,
               fontSize: 16,
@@ -600,11 +616,6 @@ class _MonthSelector extends StatelessWidget {
 
   const _MonthSelector({required this.month, required this.minMonth, this.onChange});
 
-  static const _monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December',
-  ];
-
   bool get _isMinMonth => month.year == minMonth.year && month.month == minMonth.month;
 
   bool get _isMaxMonth {
@@ -614,16 +625,16 @@ class _MonthSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final monthNames = AppStrings.list('months_full');
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         IconButton(
           icon: const Icon(Icons.chevron_left, color: AppColors.textPrimary),
-          tooltip: 'Previous month',
           onPressed: (onChange == null || _isMinMonth) ? null : () => onChange!(-1),
         ),
         Text(
-          '${_monthNames[month.month - 1]} ${month.year}',
+          '${monthNames[month.month - 1]} ${month.year}',
           style: const TextStyle(
             color: AppColors.textPrimary,
             fontSize: 16,
@@ -632,7 +643,6 @@ class _MonthSelector extends StatelessWidget {
         ),
         IconButton(
           icon: const Icon(Icons.chevron_right, color: AppColors.textPrimary),
-          tooltip: 'Next month',
           onPressed: (onChange == null || _isMaxMonth) ? null : () => onChange!(1),
         ),
       ],

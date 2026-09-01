@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../config/theme.dart';
+import '../services/app_strings.dart';
 import '../services/auth_service.dart';
 import '../widgets/error_banner.dart';
 
@@ -64,13 +65,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
         // Email confirmation is required before a session exists.
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Account created. Please log in.')),
+          SnackBar(content: Text(AppStrings.t('register_success_snackbar'))),
         );
       }
     } on AuthServiceException catch (e) {
       setState(() => _error = e.message);
     } catch (_) {
-      setState(() => _error = 'Something went wrong. Please try again.');
+      setState(() => _error = AppStrings.t('common_something_wrong'));
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -80,7 +81,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Employee Registration')),
+      appBar: AppBar(title: Text(AppStrings.t('register_title'))),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -102,20 +103,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                const Text(
-                  'Secure Registration',
+                Text(
+                  AppStrings.t('register_heading'),
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: AppColors.textPrimary,
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 6),
-                const Text(
-                  'Register your employee account to access the workforce system.',
+                Text(
+                  AppStrings.t('register_subtitle'),
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: AppColors.textSecondary),
+                  style: const TextStyle(color: AppColors.textSecondary),
                 ),
                 const SizedBox(height: 20),
                 Container(
@@ -125,15 +126,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: AppColors.secondary.withValues(alpha: 0.4)),
                   ),
-                  child: const Row(
+                  child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.warning_amber_rounded, color: AppColors.secondary, size: 20),
-                      SizedBox(width: 8),
+                      const Icon(Icons.warning_amber_rounded, color: AppColors.secondary, size: 20),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Ensure all data is accurate. Contact an administrator if you need to correct your name or Employee ID later.',
-                          style: TextStyle(color: AppColors.secondary),
+                          AppStrings.t('register_warning'),
+                          style: const TextStyle(color: AppColors.secondary),
                         ),
                       ),
                     ],
@@ -151,8 +152,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         controller: _firstNameController,
                         textInputAction: TextInputAction.next,
                         style: const TextStyle(color: AppColors.textPrimary),
-                        decoration: const InputDecoration(labelText: 'First Name'),
-                        validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                        decoration: InputDecoration(labelText: AppStrings.t('register_first_name')),
+                        validator: (v) =>
+                            (v == null || v.trim().isEmpty) ? AppStrings.t('register_required') : null,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -161,8 +163,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         controller: _lastNameController,
                         textInputAction: TextInputAction.next,
                         style: const TextStyle(color: AppColors.textPrimary),
-                        decoration: const InputDecoration(labelText: 'Last Name'),
-                        validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                        decoration: InputDecoration(labelText: AppStrings.t('register_last_name')),
+                        validator: (v) =>
+                            (v == null || v.trim().isEmpty) ? AppStrings.t('register_required') : null,
                       ),
                     ),
                   ],
@@ -177,16 +180,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     LengthLimitingTextInputFormatter(9),
                   ],
                   style: const TextStyle(color: AppColors.textPrimary),
-                  decoration: const InputDecoration(
-                    labelText: 'Employee ID Number',
-                    hintText: 'e.g. 034829551',
-                    prefixIcon: Icon(Icons.badge_outlined, color: AppColors.textSecondary),
+                  decoration: InputDecoration(
+                    labelText: AppStrings.t('register_employee_id_label'),
+                    hintText: AppStrings.t('register_employee_id_hint'),
+                    prefixIcon: const Icon(Icons.badge_outlined, color: AppColors.textSecondary),
                   ),
                   validator: (v) {
                     final value = v?.trim() ?? '';
-                    if (value.isEmpty) return 'Employee ID is required';
+                    if (value.isEmpty) return AppStrings.t('login_employee_id_required');
                     if (!RegExp(r'^\d{9}$').hasMatch(value)) {
-                      return 'Employee ID must be exactly 9 digits';
+                      return AppStrings.t('login_employee_id_invalid');
                     }
                     return null;
                   },
@@ -198,7 +201,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   textInputAction: TextInputAction.next,
                   style: const TextStyle(color: AppColors.textPrimary),
                   decoration: InputDecoration(
-                    labelText: 'Password',
+                    labelText: AppStrings.t('register_password_label'),
                     prefixIcon: const Icon(Icons.lock_outline, color: AppColors.textSecondary),
                     suffixIcon: IconButton(
                       icon: Icon(
@@ -209,8 +212,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                   validator: (v) {
-                    if (v == null || v.isEmpty) return 'Password is required';
-                    if (v.length < 6) return 'Password must be at least 6 characters';
+                    if (v == null || v.isEmpty) return AppStrings.t('common_password_required');
+                    if (v.length < 6) return AppStrings.t('common_password_too_short');
                     return null;
                   },
                 ),
@@ -222,7 +225,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   onFieldSubmitted: (_) => _submit(),
                   style: const TextStyle(color: AppColors.textPrimary),
                   decoration: InputDecoration(
-                    labelText: 'Confirm Password',
+                    labelText: AppStrings.t('register_confirm_password_label'),
                     prefixIcon: const Icon(Icons.lock_outline, color: AppColors.textSecondary),
                     suffixIcon: IconButton(
                       icon: Icon(
@@ -234,8 +237,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                   validator: (v) {
-                    if (v == null || v.isEmpty) return 'Please confirm your password';
-                    if (v != _passwordController.text) return 'Passwords do not match';
+                    if (v == null || v.isEmpty) return AppStrings.t('register_confirm_password_required');
+                    if (v != _passwordController.text) return AppStrings.t('common_passwords_mismatch');
                     return null;
                   },
                 ),
@@ -248,19 +251,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           width: 22,
                           child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
                         )
-                      : const Text('Register Account'),
+                      : Text(AppStrings.t('register_button')),
                 ),
                 const SizedBox(height: 12),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text(
-                      'Already have an account? ',
-                      style: TextStyle(color: AppColors.textSecondary),
+                    Text(
+                      AppStrings.t('register_have_account'),
+                      style: const TextStyle(color: AppColors.textSecondary),
                     ),
                     TextButton(
                       onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
-                      child: const Text('Login here'),
+                      child: Text(AppStrings.t('register_login_here')),
                     ),
                   ],
                 ),

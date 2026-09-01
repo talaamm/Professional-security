@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../config/theme.dart';
+import '../services/app_strings.dart';
 import '../services/auth_service.dart';
 import '../widgets/error_banner.dart';
 import 'forgot_password_screen.dart';
@@ -68,7 +69,7 @@ class _LoginScreenState extends State<LoginScreen> {
     } on AuthServiceException catch (e) {
       setState(() => _error = e.message);
     } catch (_) {
-      setState(() => _error = 'Something went wrong. Please try again.');
+      setState(() => _error = AppStrings.t('common_something_wrong'));
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -89,29 +90,29 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 24),
                 const _ShieldLogo(),
                 const SizedBox(height: 20),
-                const Text(
-                  'Secure Portal',
+                Text(
+                  AppStrings.t('login_title'),
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: AppColors.textPrimary,
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  'Enter your credentials to access your workforce dashboard.',
+                Text(
+                  AppStrings.t('login_subtitle'),
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: AppColors.textSecondary),
+                  style: const TextStyle(color: AppColors.textSecondary),
                 ),
                 const SizedBox(height: 32),
                 if (_error != null) ...[
                   ErrorBanner(message: _error!),
                   const SizedBox(height: 16),
                 ],
-                const Text(
-                  'Employee ID / Username',
-                  style: TextStyle(color: AppColors.textSecondary),
+                Text(
+                  AppStrings.t('login_employee_id_label'),
+                  style: const TextStyle(color: AppColors.textSecondary),
                 ),
                 const SizedBox(height: 8),
                 TextFormField(
@@ -123,21 +124,22 @@ class _LoginScreenState extends State<LoginScreen> {
                     LengthLimitingTextInputFormatter(9),
                   ],
                   style: const TextStyle(color: AppColors.textPrimary),
-                  decoration: const InputDecoration(
-                    hintText: 'e.g. 034829551',
-                    prefixIcon: Icon(Icons.person_outline, color: AppColors.textSecondary),
+                  decoration: InputDecoration(
+                    hintText: AppStrings.t('login_employee_id_hint'),
+                    prefixIcon: const Icon(Icons.person_outline, color: AppColors.textSecondary),
                   ),
                   validator: (value) {
                     final v = value?.trim() ?? '';
-                    if (v.isEmpty) return 'Employee ID is required';
+                    if (v.isEmpty) return AppStrings.t('login_employee_id_required');
                     if (!RegExp(r'^\d{9}$').hasMatch(v)) {
-                      return 'Employee ID must be exactly 9 digits';
+                      return AppStrings.t('login_employee_id_invalid');
                     }
                     return null;
                   },
                 ),
                 const SizedBox(height: 16),
-                const Text('Password', style: TextStyle(color: AppColors.textSecondary)),
+                Text(AppStrings.t('login_password_label'),
+                    style: const TextStyle(color: AppColors.textSecondary)),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _passwordController,
@@ -156,8 +158,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                     ),
                   ),
-                  validator: (value) =>
-                      (value == null || value.isEmpty) ? 'Password is required' : null,
+                  validator: (value) => (value == null || value.isEmpty)
+                      ? AppStrings.t('common_password_required')
+                      : null,
                 ),
                 Align(
                   alignment: Alignment.centerRight,
@@ -167,7 +170,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         : () => Navigator.of(context).push(
                               MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()),
                             ),
-                    child: const Text('Forgot password?'),
+                    child: Text(AppStrings.t('login_forgot_password')),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -179,15 +182,15 @@ class _LoginScreenState extends State<LoginScreen> {
                           width: 22,
                           child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
                         )
-                      : const Text('LOGIN'),
+                      : Text(AppStrings.t('login_button')),
                 ),
                 const SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text(
-                      "Don't have an account? ",
-                      style: TextStyle(color: AppColors.textSecondary),
+                    Text(
+                      AppStrings.t('login_no_account'),
+                      style: const TextStyle(color: AppColors.textSecondary),
                     ),
                     TextButton(
                       onPressed: _isSubmitting
@@ -195,7 +198,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           : () => Navigator.of(context).push(
                                 MaterialPageRoute(builder: (_) => const RegisterScreen()),
                               ),
-                      child: const Text('Register here'),
+                      child: Text(AppStrings.t('login_register_here')),
                     ),
                   ],
                 ),

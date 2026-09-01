@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../config/theme.dart';
+import '../services/app_strings.dart';
 
 /// Confirmation dialog with a required reason text field. Returns the
 /// trimmed reason if confirmed, or null if cancelled.
@@ -32,7 +33,7 @@ Future<String?> showRequiredReasonDialog({
             TextField(
               controller: controller,
               style: const TextStyle(color: AppColors.textPrimary),
-              decoration: const InputDecoration(hintText: 'Reason (required)'),
+              decoration: InputDecoration(hintText: AppStrings.t('common_reason_required_hint')),
               onChanged: (_) => setDialogState(() {}),
             ),
           ],
@@ -40,7 +41,7 @@ Future<String?> showRequiredReasonDialog({
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            child: Text(AppStrings.t('common_cancel')),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(

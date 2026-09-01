@@ -7,6 +7,7 @@ import '../models/issue_report.dart';
 import '../models/password_reset_request.dart';
 import '../models/profile.dart';
 import '../services/admin_service.dart';
+import '../services/app_strings.dart';
 import '../widgets/dashboard_section.dart';
 import '../widgets/error_banner.dart';
 import 'admin_employee_detail_screen.dart';
@@ -71,7 +72,7 @@ class _AdminEmployeesScreenState extends State<AdminEmployeesScreen> {
       setState(() => _issuesError = e.message);
     } catch (_) {
       if (!mounted) return;
-      setState(() => _issuesError = 'Could not load issue reports.');
+      setState(() => _issuesError = AppStrings.t('admin_employees_could_not_load_issues'));
     } finally {
       if (mounted) setState(() => _isLoadingIssues = false);
     }
@@ -88,7 +89,7 @@ class _AdminEmployeesScreenState extends State<AdminEmployeesScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Something went wrong. Please try again.')),
+        SnackBar(content: Text(AppStrings.t('common_something_wrong'))),
       );
     }
   }
@@ -108,7 +109,7 @@ class _AdminEmployeesScreenState extends State<AdminEmployeesScreen> {
       setState(() => _resetRequestsError = e.message);
     } catch (_) {
       if (!mounted) return;
-      setState(() => _resetRequestsError = 'Could not load password reset requests.');
+      setState(() => _resetRequestsError = AppStrings.t('admin_employees_could_not_load_resets'));
     } finally {
       if (mounted) setState(() => _isLoadingResetRequests = false);
     }
@@ -125,7 +126,7 @@ class _AdminEmployeesScreenState extends State<AdminEmployeesScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Something went wrong. Please try again.')),
+        SnackBar(content: Text(AppStrings.t('common_something_wrong'))),
       );
     }
   }
@@ -135,8 +136,9 @@ class _AdminEmployeesScreenState extends State<AdminEmployeesScreen> {
       final employee = await _adminService.fetchEmployeeByEmployeeId(employeeId);
       if (!mounted) return;
       if (employee == null) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Employee not found.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppStrings.t('admin_employees_employee_not_found'))),
+        );
         return;
       }
       await _openEmployee(employee);
@@ -177,7 +179,7 @@ class _AdminEmployeesScreenState extends State<AdminEmployeesScreen> {
       setState(() => _searchError = e.message);
     } catch (_) {
       if (!mounted) return;
-      setState(() => _searchError = 'Something went wrong. Please try again.');
+      setState(() => _searchError = AppStrings.t('common_something_wrong'));
     } finally {
       if (mounted) setState(() => _isSearching = false);
     }
@@ -201,7 +203,7 @@ class _AdminEmployeesScreenState extends State<AdminEmployeesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Employees')),
+      appBar: AppBar(title: Text(AppStrings.t('admin_employees_title'))),
       body: RefreshIndicator(
         color: AppColors.primary,
         backgroundColor: AppColors.surface,
@@ -220,9 +222,9 @@ class _AdminEmployeesScreenState extends State<AdminEmployeesScreen> {
                     const SizedBox(height: 16),
                   ],
                   DashboardSection(
-                    title: 'Password Reset Requests',
+                    title: AppStrings.t('admin_employees_password_reset_section'),
                     count: _resetRequests.length,
-                    emptyText: 'No open password reset requests.',
+                    emptyText: AppStrings.t('admin_employees_no_reset_requests'),
                     children: _resetRequests
                         .map((request) => _PasswordResetTile(
                               request: request,
@@ -233,9 +235,9 @@ class _AdminEmployeesScreenState extends State<AdminEmployeesScreen> {
                   ),
                   const SizedBox(height: 16),
                   DashboardSection(
-                    title: 'Reported Issues',
+                    title: AppStrings.t('admin_employees_reported_issues_section'),
                     count: _issues.length,
-                    emptyText: 'No open issue reports.',
+                    emptyText: AppStrings.t('admin_employees_no_issues'),
                     children: _issues
                         .map((issue) => _IssueTile(
                               issue: issue,
@@ -248,9 +250,9 @@ class _AdminEmployeesScreenState extends State<AdminEmployeesScreen> {
                   TextField(
                     controller: _searchController,
                     style: const TextStyle(color: AppColors.textPrimary),
-                    decoration: const InputDecoration(
-                      hintText: 'Search by name or employee ID',
-                      prefixIcon: Icon(Icons.search, color: AppColors.textSecondary),
+                    decoration: InputDecoration(
+                      hintText: AppStrings.t('admin_employees_search_hint'),
+                      prefixIcon: const Icon(Icons.search, color: AppColors.textSecondary),
                     ),
                     onChanged: _onQueryChanged,
                   ),
@@ -274,21 +276,22 @@ class _AdminEmployeesScreenState extends State<AdminEmployeesScreen> {
       );
     }
     if (!_hasSearched) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 24),
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24),
         child: Center(
           child: Text(
-            'Search for an employee to see their details.',
-            style: TextStyle(color: AppColors.textSecondary),
+            AppStrings.t('admin_employees_search_prompt'),
+            style: const TextStyle(color: AppColors.textSecondary),
           ),
         ),
       );
     }
     if (_results.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 24),
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24),
         child: Center(
-          child: Text('No matching employees.', style: TextStyle(color: AppColors.textSecondary)),
+          child: Text(AppStrings.t('admin_employees_no_matches'),
+              style: const TextStyle(color: AppColors.textSecondary)),
         ),
       );
     }
@@ -320,7 +323,7 @@ class _PasswordResetTile extends StatelessWidget {
         style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
       ),
       subtitle: Text(
-        request.message ?? 'No message provided.',
+        request.message ?? AppStrings.t('admin_employees_no_message'),
         style: const TextStyle(color: AppColors.textSecondary),
       ),
       trailing: OutlinedButton(
@@ -328,7 +331,7 @@ class _PasswordResetTile extends StatelessWidget {
         // see the identical note on _IssueTile below.
         style: OutlinedButton.styleFrom(minimumSize: const Size(64, 36)),
         onPressed: onDone,
-        child: const Text('Done'),
+        child: Text(AppStrings.t('common_done')),
       ),
     );
   }
@@ -357,7 +360,7 @@ class _IssueTile extends StatelessWidget {
         // width for this widget.
         style: OutlinedButton.styleFrom(minimumSize: const Size(64, 36)),
         onPressed: onDone,
-        child: const Text('Done'),
+        child: Text(AppStrings.t('common_done')),
       ),
     );
   }
@@ -398,7 +401,7 @@ class _EmployeeCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'ID: ${employee.employeeId}',
+                    AppStrings.t('admin_employees_id_prefix', {'id': employee.employeeId}),
                     style: const TextStyle(color: AppColors.textSecondary),
                   ),
                 ],
@@ -411,7 +414,7 @@ class _EmployeeCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                isActive ? 'Active' : 'Inactive',
+                isActive ? AppStrings.t('common_active') : AppStrings.t('common_inactive'),
                 style: TextStyle(
                   color: isActive ? AppColors.success : AppColors.error,
                   fontSize: 11,

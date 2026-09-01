@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../config/theme.dart';
 import '../models/profile.dart';
+import '../services/app_strings.dart';
 import 'employee_profile_screen.dart';
 import 'history_screen.dart';
 import 'home_screen.dart';
-import 'reports_screen.dart';
 
-/// Bottom-navigation shell for the employee app: Home, History, Reports,
-/// Profile. Each tab is a self-contained screen (own Scaffold/AppBar); this
-/// widget only owns which one is showing.
+/// Bottom-navigation shell for the employee app: Home, History, Profile.
+/// Each tab is a self-contained screen (own Scaffold/AppBar); this widget
+/// only owns which one is showing.
 class RootScreen extends StatefulWidget {
   final Profile profile;
 
@@ -27,7 +27,6 @@ class _RootScreenState extends State<RootScreen> {
     final pages = [
       HomeScreen(profile: widget.profile),
       HistoryScreen(profile: widget.profile),
-      const ReportsScreen(),
       EmployeeProfileScreen(profile: widget.profile),
     ];
 
@@ -40,25 +39,20 @@ class _RootScreenState extends State<RootScreen> {
         backgroundColor: AppColors.surface,
         selectedItemColor: AppColors.primary,
         unselectedItemColor: AppColors.textSecondary,
-        items: const [
+        items: [
           BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
-            label: 'Home',
+            icon: const Icon(Icons.home_outlined),
+            activeIcon: const Icon(Icons.home),
+            label: AppStrings.t('nav_home'),
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.history),
-            label: 'History',
+            icon: const Icon(Icons.history),
+            label: AppStrings.t('nav_history'),
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.bar_chart_outlined),
-            activeIcon: Icon(Icons.bar_chart),
-            label: 'Reports',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            activeIcon: Icon(Icons.person),
-            label: 'Profile',
+            icon: const Icon(Icons.person_outline),
+            activeIcon: const Icon(Icons.person),
+            label: AppStrings.t('nav_profile'),
           ),
         ],
       ),

@@ -3,6 +3,7 @@ import 'package:geolocator/geolocator.dart';
 
 import '../config/theme.dart';
 import '../models/work_session.dart';
+import '../services/app_strings.dart';
 import '../services/location_service.dart';
 import '../services/work_session_service.dart';
 import '../widgets/error_banner.dart';
@@ -77,7 +78,7 @@ class _EndWorkScreenState extends State<EndWorkScreen> {
         _fail(e.message);
       }
     } catch (_) {
-      _fail('Something went wrong. Please try again.');
+      _fail(AppStrings.t('common_something_wrong'));
     }
   }
 
@@ -111,7 +112,7 @@ class _EndWorkScreenState extends State<EndWorkScreen> {
     } on WorkSessionException catch (e) {
       setState(() => _error = e.message);
     } catch (_) {
-      setState(() => _error = 'Something went wrong. Please try again.');
+      setState(() => _error = AppStrings.t('common_something_wrong'));
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -121,7 +122,7 @@ class _EndWorkScreenState extends State<EndWorkScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Finish Work')),
+      appBar: AppBar(title: Text(AppStrings.t('end_work_title'))),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -136,10 +137,16 @@ class _EndWorkScreenState extends State<EndWorkScreen> {
       case _EndStage.checking:
         return const _CheckingView();
       case _EndStage.error:
-        return _ErrorView(message: _error ?? 'Something went wrong.', onRetry: _attemptEnd);
+        return _ErrorView(
+          message: _error ?? AppStrings.t('common_something_wrong'),
+          onRetry: _attemptEnd,
+        );
       case _EndStage.manual:
         return _ManualEntryView(
-          workplaceLabel: widget.session.workplaceLabel,
+          workplaceLabel: widget.session.workplaceName != null ||
+                  widget.session.manualLocationName != null
+              ? widget.session.workplaceLabel
+              : AppStrings.t('workplace_unknown'),
           controller: _manualNameController,
           error: _error,
           isSubmitting: _isSubmitting,
@@ -155,25 +162,25 @@ class _CheckingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          CircularProgressIndicator(color: AppColors.primary),
-          SizedBox(height: 24),
+          const CircularProgressIndicator(color: AppColors.primary),
+          const SizedBox(height: 24),
           Text(
-            'Confirming your location',
-            style: TextStyle(
+            AppStrings.t('end_work_checking_title'),
+            style: const TextStyle(
               color: AppColors.textPrimary,
               fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Text(
-            "Checking that you're still at your workplace.",
+            AppStrings.t('end_work_checking_desc'),
             textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.textSecondary),
+            style: const TextStyle(color: AppColors.textSecondary),
           ),
         ],
       ),
@@ -196,10 +203,10 @@ class _ErrorView extends StatelessWidget {
         children: [
           const Icon(Icons.location_off_outlined, color: AppColors.error, size: 48),
           const SizedBox(height: 16),
-          const Text(
-            'Location error',
+          Text(
+            AppStrings.t('common_location_error_title'),
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: const TextStyle(
               color: AppColors.textPrimary,
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -212,7 +219,7 @@ class _ErrorView extends StatelessWidget {
             style: const TextStyle(color: AppColors.textSecondary),
           ),
           const SizedBox(height: 24),
-          ElevatedButton(onPressed: onRetry, child: const Text('Try Again')),
+          ElevatedButton(onPressed: onRetry, child: Text(AppStrings.t('common_try_again'))),
         ],
       ),
     );
@@ -244,7 +251,7 @@ class _ManualEntryView extends StatelessWidget {
         const Icon(Icons.location_searching, color: AppColors.secondary, size: 40),
         const SizedBox(height: 12),
         Text(
-          "Couldn't confirm you're at $workplaceLabel",
+          AppStrings.t('end_work_cant_confirm_title', {'workplace': workplaceLabel}),
           style: const TextStyle(
             color: AppColors.textPrimary,
             fontSize: 18,
@@ -252,22 +259,22 @@ class _ManualEntryView extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        const Text(
-          'Please confirm where you are finishing work.',
-          style: TextStyle(color: AppColors.textSecondary),
+        Text(
+          AppStrings.t('end_work_confirm_desc'),
+          style: const TextStyle(color: AppColors.textSecondary),
         ),
         const SizedBox(height: 20),
         if (error != null) ...[
           ErrorBanner(message: error!),
           const SizedBox(height: 16),
         ],
-        const Text('CURRENT LOCATION',
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+        Text(AppStrings.t('end_work_location_section'),
+            style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
         const SizedBox(height: 8),
         TextField(
           controller: controller,
           style: const TextStyle(color: AppColors.textPrimary),
-          decoration: const InputDecoration(hintText: 'e.g. Wedding Hall - Beit Hanina'),
+          decoration: InputDecoration(hintText: AppStrings.t('common_location_name_hint')),
         ),
         const SizedBox(height: 16),
         Container(
@@ -277,15 +284,15 @@ class _ManualEntryView extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: AppColors.secondary.withValues(alpha: 0.4)),
           ),
-          child: const Row(
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.warning_amber_rounded, color: AppColors.secondary, size: 20),
-              SizedBox(width: 8),
+              const Icon(Icons.warning_amber_rounded, color: AppColors.secondary, size: 20),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'This session will be marked as unverified and reviewed by an administrator.',
-                  style: TextStyle(color: AppColors.secondary),
+                  AppStrings.t('end_work_manual_warning'),
+                  style: const TextStyle(color: AppColors.secondary),
                 ),
               ),
             ],
@@ -303,14 +310,14 @@ class _ManualEntryView extends StatelessWidget {
                       width: 22,
                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
                     )
-                  : const Text('CONFIRM & FINISH WORK'),
+                  : Text(AppStrings.t('end_work_confirm_button')),
             );
           },
         ),
         const SizedBox(height: 8),
         TextButton(
           onPressed: isSubmitting ? null : onTryAgain,
-          child: const Text('Try Again'),
+          child: Text(AppStrings.t('common_try_again')),
         ),
       ],
     );

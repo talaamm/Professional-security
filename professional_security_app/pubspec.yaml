@@ -62,12 +62,16 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  # Arabic/Hebrew fallback fonts for PDF reports (report_service.dart) -
-  # the pdf package's base14 fonts only cover Latin, so without these
-  # Arabic/Hebrew names render as missing-glyph boxes.
   assets:
+    # Arabic/Hebrew fallback fonts for PDF reports (report_service.dart) -
+    # the pdf package's base14 fonts only cover Latin, so without these
+    # Arabic/Hebrew names render as missing-glyph boxes.
     - assets/fonts/NotoSansArabic-Regular.ttf
     - assets/fonts/NotoSansHebrew-Regular.ttf
+    # English/Arabic/Hebrew UI text (services/app_strings.dart).
+    - assets/lang/en.json
+    - assets/lang/ar.json
+    - assets/lang/he.json
 
   # To add assets to your application, add an assets section, like this:
   # assets:

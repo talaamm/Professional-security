@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../config/theme.dart';
 import '../models/profile.dart';
 import '../services/admin_service.dart';
+import '../services/app_strings.dart';
 import '../services/auth_service.dart';
-import '../services/language_service.dart';
 import '../widgets/language_picker.dart';
 import 'change_password_screen.dart';
 
@@ -25,10 +25,8 @@ class AdminProfileScreen extends StatefulWidget {
 class _AdminProfileScreenState extends State<AdminProfileScreen> {
   final _adminService = AdminService();
   final _authService = AuthService();
-  final _languageService = LanguageService();
 
   int? _activeEmployeeCount;
-  AppLanguage _language = AppLanguage.english;
   bool _isLoading = true;
 
   @override
@@ -40,15 +38,9 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
   Future<void> _load() async {
     setState(() => _isLoading = true);
     try {
-      final results = await Future.wait([
-        _adminService.fetchActiveEmployeeCount(),
-        _languageService.getLanguage(),
-      ]);
+      final count = await _adminService.fetchActiveEmployeeCount();
       if (!mounted) return;
-      setState(() {
-        _activeEmployeeCount = results[0] as int;
-        _language = results[1] as AppLanguage;
-      });
+      setState(() => _activeEmployeeCount = count);
     } catch (_) {
       // Non-critical info; leave the counter blank rather than blocking the page.
     } finally {
@@ -56,20 +48,16 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
     }
   }
 
-  Future<void> _pickLanguage() => pickLanguage(
-        context: context,
-        current: _language,
-        onChanged: (language) => setState(() => _language = language),
-      );
+  Future<void> _pickLanguage() => pickLanguage(context: context);
 
   String get _roleLabel {
     switch (widget.profile.role) {
       case UserRole.superAdmin:
-        return 'Super Administrator';
+        return AppStrings.t('admin_profile_role_super_admin');
       case UserRole.admin:
-        return 'Administrator';
+        return AppStrings.t('admin_profile_role_admin');
       case UserRole.employee:
-        return 'Employee';
+        return AppStrings.t('admin_profile_role_employee');
     }
   }
 
@@ -78,11 +66,11 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Profile'),
+        title: Text(AppStrings.t('profile_title')),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
-            tooltip: 'Log out',
+            tooltip: AppStrings.t('common_log_out'),
             onPressed: _authService.logout,
           ),
         ],
@@ -116,7 +104,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
                   Text(_roleLabel, style: const TextStyle(color: AppColors.textSecondary)),
                   const Divider(height: 28, color: AppColors.background),
                   _InfoRow(
-                    label: 'ACTIVE EMPLOYEES',
+                    label: AppStrings.t('admin_profile_active_employees'),
                     value: _isLoading ? '—' : '${_activeEmployeeCount ?? 0}',
                   ),
                 ],
@@ -125,15 +113,15 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
             const SizedBox(height: 24),
             _ProfileActionTile(
               icon: Icons.language,
-              title: 'Language',
-              subtitle: _language.label,
+              title: AppStrings.t('profile_language'),
+              subtitle: AppStrings.current.value.label,
               onTap: _pickLanguage,
             ),
             const SizedBox(height: 12),
             _ProfileActionTile(
               icon: Icons.lock_outline,
-              title: 'Change Password',
-              subtitle: 'Update your account password',
+              title: AppStrings.t('profile_change_password'),
+              subtitle: AppStrings.t('profile_change_password_subtitle'),
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
               ),

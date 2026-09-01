@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../config/theme.dart';
+import '../services/app_strings.dart';
 import '../services/auth_service.dart';
 import '../widgets/error_banner.dart';
 
@@ -50,13 +51,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       if (!mounted) return;
       _employeeIdController.clear();
       _messageController.clear();
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Your request has been sent to the admins.'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppStrings.t('forgot_password_success_snackbar'))),
+      );
     } on AuthServiceException catch (e) {
       setState(() => _error = e.message);
     } catch (_) {
-      setState(() => _error = 'Something went wrong. Please try again.');
+      setState(() => _error = AppStrings.t('common_something_wrong'));
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -67,20 +68,18 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.surface,
-        title: const Text(
-          'Already submitted a request?',
-          style: TextStyle(color: AppColors.textPrimary),
+        title: Text(
+          AppStrings.t('forgot_password_info_title'),
+          style: const TextStyle(color: AppColors.textPrimary),
         ),
-        content: const Text(
-          'Once an administrator resets your password and processes your request, '
-          'you can log in with the temporary password "123456". We recommend '
-          'changing it from your Profile as soon as you log in.',
-          style: TextStyle(color: AppColors.textSecondary),
+        content: Text(
+          AppStrings.t('forgot_password_info_body'),
+          style: const TextStyle(color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Got it'),
+            child: Text(AppStrings.t('common_got_it')),
           ),
         ],
       ),
@@ -91,7 +90,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Account Recovery')),
+      appBar: AppBar(title: Text(AppStrings.t('forgot_password_title'))),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -100,28 +99,27 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
-                  'Reset Password',
-                  style: TextStyle(
+                Text(
+                  AppStrings.t('forgot_password_heading'),
+                  style: const TextStyle(
                     color: AppColors.textPrimary,
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  'Enter your Employee ID and let an administrator know. They will reset '
-                  'your password and let you know when it is ready.',
-                  style: TextStyle(color: AppColors.textSecondary),
+                Text(
+                  AppStrings.t('forgot_password_subtitle'),
+                  style: const TextStyle(color: AppColors.textSecondary),
                 ),
                 const SizedBox(height: 24),
                 if (_error != null) ...[
                   ErrorBanner(message: _error!),
                   const SizedBox(height: 16),
                 ],
-                const Text(
-                  'EMPLOYEE ID',
-                  style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                Text(
+                  AppStrings.t('forgot_password_employee_id_section'),
+                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
                 ),
                 const SizedBox(height: 8),
                 TextFormField(
@@ -132,23 +130,23 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     LengthLimitingTextInputFormatter(9),
                   ],
                   style: const TextStyle(color: AppColors.textPrimary),
-                  decoration: const InputDecoration(
-                    hintText: 'e.g. 034829551',
-                    prefixIcon: Icon(Icons.badge_outlined, color: AppColors.textSecondary),
+                  decoration: InputDecoration(
+                    hintText: AppStrings.t('login_employee_id_hint'),
+                    prefixIcon: const Icon(Icons.badge_outlined, color: AppColors.textSecondary),
                   ),
                   validator: (value) {
                     final v = value?.trim() ?? '';
-                    if (v.isEmpty) return 'Employee ID is required';
+                    if (v.isEmpty) return AppStrings.t('login_employee_id_required');
                     if (!RegExp(r'^\d{9}$').hasMatch(v)) {
-                      return 'Employee ID must be exactly 9 digits';
+                      return AppStrings.t('login_employee_id_invalid');
                     }
                     return null;
                   },
                 ),
                 const SizedBox(height: 16),
-                const Text(
-                  'MESSAGE TO THE ADMIN (OPTIONAL)',
-                  style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                Text(
+                  AppStrings.t('forgot_password_message_section'),
+                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
                 ),
                 const SizedBox(height: 8),
                 TextFormField(
@@ -156,8 +154,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   maxLength: 200,
                   maxLines: 3,
                   style: const TextStyle(color: AppColors.textPrimary),
-                  decoration: const InputDecoration(
-                    hintText: 'e.g. I forgot my password, please reset it',
+                  decoration: InputDecoration(
+                    hintText: AppStrings.t('forgot_password_message_hint'),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -169,12 +167,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                           width: 22,
                           child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
                         )
-                      : const Text('SUBMIT REQUEST'),
+                      : Text(AppStrings.t('forgot_password_submit')),
                 ),
                 const SizedBox(height: 8),
                 TextButton(
                   onPressed: _showAlreadySubmittedInfo,
-                  child: const Text('Already submitted a request?'),
+                  child: Text(AppStrings.t('forgot_password_already_submitted')),
                 ),
               ],
             ),

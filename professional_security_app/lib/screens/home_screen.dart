@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../config/theme.dart';
 import '../models/profile.dart';
 import '../models/work_session.dart';
+import '../services/app_strings.dart';
 import '../services/issue_service.dart';
 import '../services/work_session_service.dart';
 import '../widgets/error_banner.dart';
@@ -59,7 +60,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _configureTicker();
     } catch (_) {
       if (!mounted) return;
-      setState(() => _error = 'Could not load your work status. Pull down to retry.');
+      setState(() => _error = AppStrings.t('home_error_status'));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -91,23 +92,25 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.surface,
-        title: const Text(
-          'Finish your work session?',
-          style: TextStyle(color: AppColors.textPrimary),
+        title: Text(
+          AppStrings.t('home_finish_dialog_title'),
+          style: const TextStyle(color: AppColors.textPrimary),
         ),
         content: Text(
-          'Started: ${_formatTime(session.startedAt)}\n'
-          'Current duration: ${_formatElapsed(session.startedAt)}',
+          AppStrings.t('home_finish_dialog_content', {
+            'time': _formatTime(session.startedAt),
+            'elapsed': _formatElapsed(session.startedAt),
+          }),
           style: const TextStyle(color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            child: Text(AppStrings.t('common_cancel')),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Finish Work'),
+            child: Text(AppStrings.t('home_finish_dialog_confirm')),
           ),
         ],
       ),
@@ -131,8 +134,8 @@ class _HomeScreenState extends State<HomeScreen> {
       SnackBar(
         content: Text(
           verified
-              ? 'Session ended.'
-              : 'Session ended — marked as unverified, pending admin review.',
+              ? AppStrings.t('home_session_ended_verified')
+              : AppStrings.t('home_session_ended_unverified'),
         ),
       ),
     );
@@ -145,17 +148,17 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           backgroundColor: AppColors.surface,
-          title: const Text(
-            'Having an issue?',
-            style: TextStyle(color: AppColors.textPrimary),
+          title: Text(
+            AppStrings.t('home_report_issue_title'),
+            style: const TextStyle(color: AppColors.textPrimary),
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Briefly describe the issue. An admin will follow up.',
-                style: TextStyle(color: AppColors.textSecondary),
+              Text(
+                AppStrings.t('home_report_issue_desc'),
+                style: const TextStyle(color: AppColors.textSecondary),
               ),
               const SizedBox(height: 16),
               TextField(
@@ -163,7 +166,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 maxLength: 50,
                 maxLines: 2,
                 style: const TextStyle(color: AppColors.textPrimary),
-                decoration: const InputDecoration(hintText: 'e.g. My badge is not scanning'),
+                decoration: InputDecoration(hintText: AppStrings.t('home_report_issue_hint')),
                 onChanged: (_) => setDialogState(() {}),
               ),
             ],
@@ -171,13 +174,13 @@ class _HomeScreenState extends State<HomeScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: Text(AppStrings.t('common_cancel')),
             ),
             ElevatedButton(
               onPressed: controller.text.trim().isEmpty
                   ? null
                   : () => Navigator.of(context).pop(controller.text.trim()),
-              child: const Text('Send'),
+              child: Text(AppStrings.t('common_send')),
             ),
           ],
         ),
@@ -191,14 +194,14 @@ class _HomeScreenState extends State<HomeScreen> {
       await _issueService.reportIssue(message);
       if (!mounted) return;
       ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Sent to the admins.')));
+          .showSnackBar(SnackBar(content: Text(AppStrings.t('home_report_issue_sent'))));
     } on IssueServiceException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Something went wrong. Please try again.')),
+        SnackBar(content: Text(AppStrings.t('common_something_wrong'))),
       );
     }
   }
@@ -224,11 +227,11 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Home'),
+        title: Text(AppStrings.t('home_title')),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
-            tooltip: 'Log out',
+            tooltip: AppStrings.t('common_log_out'),
             onPressed: () => handleLogout(context, widget.profile.employeeId),
           ),
         ],
@@ -243,7 +246,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 padding: const EdgeInsets.all(24),
                 children: [
                   Text(
-                    'Welcome, ${widget.profile.fullName}',
+                    AppStrings.t('common_welcome', {'name': widget.profile.fullName}),
                     style: const TextStyle(
                       color: AppColors.textPrimary,
                       fontSize: 22,
@@ -252,7 +255,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Employee ID: ${widget.profile.employeeId}',
+                    AppStrings.t('common_employee_id', {'id': widget.profile.employeeId}),
                     style: const TextStyle(color: AppColors.textSecondary),
                   ),
                   const SizedBox(height: 24),
@@ -275,13 +278,15 @@ class _HomeScreenState extends State<HomeScreen> {
                             foregroundColor: Colors.white,
                           )
                         : null,
-                    child: Text(isWorking ? 'FINISH WORK' : 'START WORK'),
+                    child: Text(isWorking
+                        ? AppStrings.t('home_finish_button')
+                        : AppStrings.t('home_start_button')),
                   ),
                   const SizedBox(height: 12),
                   TextButton.icon(
                     onPressed: _reportIssue,
                     icon: const Icon(Icons.help_outline, size: 18),
-                    label: const Text('Having Issue? Tell the admin'),
+                    label: Text(AppStrings.t('home_report_issue')),
                   ),
                 ],
               ),
@@ -315,9 +320,9 @@ class _StatusCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'STATUS',
-            style: TextStyle(
+          Text(
+            AppStrings.t('home_status_label'),
+            style: const TextStyle(
               color: AppColors.textSecondary,
               fontSize: 12,
               fontWeight: FontWeight.bold,
@@ -346,7 +351,7 @@ class _StatusCard extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                isWorking ? 'Working' : 'Not Working',
+                isWorking ? AppStrings.t('home_working') : AppStrings.t('home_not_working'),
                 style: const TextStyle(
                   color: AppColors.textPrimary,
                   fontSize: 18,
@@ -358,22 +363,27 @@ class _StatusCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             isWorking
-                ? "You're currently working."
-                : "You don't currently have an active work session.",
+                ? AppStrings.t('home_working_desc')
+                : AppStrings.t('home_not_working_desc'),
             style: const TextStyle(color: AppColors.textSecondary),
           ),
           if (isWorking && session != null) ...[
             const Divider(height: 32, color: AppColors.background),
-            _InfoRow(label: 'WORKING SINCE', value: formatTime(session!.startedAt)),
+            _InfoRow(label: AppStrings.t('home_working_since'), value: formatTime(session!.startedAt)),
             const SizedBox(height: 16),
-            _InfoRow(label: 'ELAPSED', value: formatElapsed(session!.startedAt)),
+            _InfoRow(label: AppStrings.t('home_elapsed'), value: formatElapsed(session!.startedAt)),
             const SizedBox(height: 16),
-            _InfoRow(label: 'WORKPLACE', value: session!.workplaceLabel),
+            _InfoRow(
+              label: AppStrings.t('home_workplace'),
+              value: session!.workplaceName != null || session!.manualLocationName != null
+                  ? session!.workplaceLabel
+                  : AppStrings.t('workplace_unknown'),
+            ),
             if (session!.isPendingReview) ...[
               const SizedBox(height: 6),
-              const Text(
-                '⚠ Manual location - pending admin review',
-                style: TextStyle(color: AppColors.secondary, fontSize: 12),
+              Text(
+                AppStrings.t('home_manual_pending'),
+                style: const TextStyle(color: AppColors.secondary, fontSize: 12),
               ),
             ],
           ],

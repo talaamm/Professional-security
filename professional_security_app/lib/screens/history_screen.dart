@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../config/theme.dart';
 import '../models/profile.dart';
 import '../models/work_session.dart';
+import '../services/app_strings.dart';
+import '../services/report_service.dart';
 import '../services/work_session_service.dart';
 import '../widgets/error_banner.dart';
 
@@ -22,10 +24,12 @@ class HistoryScreen extends StatefulWidget {
 
 class _HistoryScreenState extends State<HistoryScreen> {
   final _sessionService = WorkSessionService();
+  final _reportService = ReportService();
 
   late DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
   List<WorkSession> _sessions = [];
   bool _isLoading = true;
+  bool _isGeneratingReport = false;
   String? _error;
 
   @override
@@ -49,10 +53,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
       setState(() => _sessions = sessions);
     } on WorkSessionException catch (e) {
       if (!mounted) return;
-      setState(() => _error = 'Could not load your history: ${e.message}');
+      setState(() => _error = AppStrings.t('history_error', {'reason': e.message}));
     } catch (_) {
       if (!mounted) return;
-      setState(() => _error = 'Could not load your history. Pull down to retry.');
+      setState(() => _error = AppStrings.t('history_error_generic'));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -63,14 +67,53 @@ class _HistoryScreenState extends State<HistoryScreen> {
     _load();
   }
 
+  Future<void> _generateReport() async {
+    setState(() {
+      _isGeneratingReport = true;
+      _error = null;
+    });
+
+    try {
+      await _reportService.generateMonthlyReport(
+        employee: widget.profile,
+        month: _month,
+        sessions: _sessions,
+      );
+    } on ReportServiceException catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.message);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _error = AppStrings.t('history_report_error_generic'));
+    } finally {
+      if (mounted) setState(() => _isGeneratingReport = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Work History')),
+      appBar: AppBar(title: Text(AppStrings.t('history_title'))),
       body: Column(
         children: [
           _MonthSelector(month: _month, onChange: _changeMonth),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
+            child: ElevatedButton.icon(
+              onPressed: (_isLoading || _isGeneratingReport) ? null : _generateReport,
+              icon: _isGeneratingReport
+                  ? const SizedBox(
+                      height: 16,
+                      width: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                    )
+                  : const Icon(Icons.picture_as_pdf_outlined, size: 18),
+              label: Text(_isGeneratingReport
+                  ? AppStrings.t('history_generating')
+                  : AppStrings.t('history_generate_report')),
+            ),
+          ),
           if (_error != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
@@ -85,12 +128,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
                   : _sessions.isEmpty
                       ? ListView(
-                          children: const [
-                            SizedBox(height: 80),
+                          children: [
+                            const SizedBox(height: 80),
                             Center(
                               child: Text(
-                                'No work sessions this month.',
-                                style: TextStyle(color: AppColors.textSecondary),
+                                AppStrings.t('history_empty'),
+                                style: const TextStyle(color: AppColors.textSecondary),
                               ),
                             ),
                           ],
@@ -115,11 +158,6 @@ class _MonthSelector extends StatelessWidget {
 
   const _MonthSelector({required this.month, required this.onChange});
 
-  static const _monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December',
-  ];
-
   bool get _isCurrentMonth {
     final now = DateTime.now();
     return month.year == now.year && month.month == now.month;
@@ -127,6 +165,7 @@ class _MonthSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final monthNames = AppStrings.list('months_full');
     return Padding(
       padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
       child: Row(
@@ -134,11 +173,10 @@ class _MonthSelector extends StatelessWidget {
         children: [
           IconButton(
             icon: const Icon(Icons.chevron_left, color: AppColors.textPrimary),
-            tooltip: 'Previous month',
             onPressed: () => onChange(-1),
           ),
           Text(
-            '${_monthNames[month.month - 1]} ${month.year}',
+            '${monthNames[month.month - 1]} ${month.year}',
             style: const TextStyle(
               color: AppColors.textPrimary,
               fontSize: 18,
@@ -147,7 +185,6 @@ class _MonthSelector extends StatelessWidget {
           ),
           IconButton(
             icon: const Icon(Icons.chevron_right, color: AppColors.textPrimary),
-            tooltip: 'Next month',
             onPressed: _isCurrentMonth ? null : () => onChange(1),
           ),
         ],
@@ -161,13 +198,11 @@ class _SessionCard extends StatelessWidget {
 
   const _SessionCard({required this.session});
 
-  static const _weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  static const _months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-  ];
-
-  String _formatDate(DateTime dt) =>
-      '${_weekdays[dt.weekday - 1]}, ${_months[dt.month - 1]} ${dt.day}';
+  String _formatDate(DateTime dt) {
+    final weekdays = AppStrings.list('weekdays_short');
+    final months = AppStrings.list('months_short');
+    return '${weekdays[dt.weekday - 1]}, ${months[dt.month - 1]} ${dt.day}';
+  }
 
   String _formatTime(DateTime dt) {
     final hour = dt.hour.toString().padLeft(2, '0');
@@ -191,6 +226,27 @@ class _SessionCard extends StatelessWidget {
       default:
         return AppColors.secondary;
     }
+  }
+
+  /// WorkSession.verificationStatus/verifiedByLabel return fixed English
+  /// internal values (also used for the color switch above) - these map
+  /// them to display text without touching the model.
+  String _statusLabel(String status) {
+    switch (status) {
+      case 'Verified':
+        return AppStrings.t('status_verified');
+      case 'In progress':
+        return AppStrings.t('status_in_progress');
+      default:
+        return AppStrings.t('status_unverified');
+    }
+  }
+
+  String _verifiedByLabel(WorkSession session) {
+    final label = session.verifiedByLabel;
+    if (label == 'Pending review') return AppStrings.t('verified_by_pending');
+    if (label == 'You') return AppStrings.t('verified_by_you');
+    return label ?? '';
   }
 
   @override
@@ -226,7 +282,7 @@ class _SessionCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  status,
+                  _statusLabel(status),
                   style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.bold),
                 ),
               ),
@@ -234,7 +290,9 @@ class _SessionCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            session.workplaceLabel,
+            session.workplaceName != null || session.manualLocationName != null
+                ? session.workplaceLabel
+                : AppStrings.t('workplace_unknown'),
             style: const TextStyle(
               color: AppColors.textPrimary,
               fontSize: 16,
@@ -244,7 +302,7 @@ class _SessionCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             endedAt == null
-                ? '${_formatTime(session.startedAt)} → in progress'
+                ? '${_formatTime(session.startedAt)} → ${AppStrings.t('status_in_progress')}'
                 : '${_formatTime(session.startedAt)} → ${_formatTime(endedAt)}  ·  '
                     '${_formatDuration(session.startedAt, endedAt)}',
             style: const TextStyle(color: AppColors.textSecondary),
@@ -252,7 +310,7 @@ class _SessionCard extends StatelessWidget {
           if (session.verifiedByLabel != null) ...[
             const SizedBox(height: 4),
             Text(
-              'Verified by: ${session.verifiedByLabel}',
+              AppStrings.t('session_verified_by', {'name': _verifiedByLabel(session)}),
               style: TextStyle(
                 color: session.verifiedBy == null
                     ? AppColors.secondary

@@ -6,6 +6,7 @@ import '../config/theme.dart';
 import '../models/profile.dart';
 import '../models/workplace.dart';
 import '../services/admin_service.dart';
+import '../services/app_strings.dart';
 import '../services/location_service.dart';
 import '../widgets/error_banner.dart';
 
@@ -102,7 +103,7 @@ class _WorkplaceFormScreenState extends State<WorkplaceFormScreen> {
     } on LocationServiceException catch (e) {
       _failCapture(e.message);
     } catch (_) {
-      _failCapture('Could not determine your location. Please try again.');
+      _failCapture(AppStrings.t('workplace_form_could_not_determine_location'));
     } finally {
       if (mounted) setState(() => _isRecalibrating = false);
     }
@@ -138,19 +139,20 @@ class _WorkplaceFormScreenState extends State<WorkplaceFormScreen> {
     final radius = _effectiveRadius;
 
     if (name.isEmpty) {
-      setState(() => _error = 'Please enter a name for this workplace.');
+      setState(() => _error = AppStrings.t('workplace_form_name_required'));
       return;
     }
     if (latitude == null || longitude == null) {
-      setState(() => _error = 'A location is required. Please capture the GPS location.');
+      setState(() => _error = AppStrings.t('workplace_form_location_required'));
       return;
     }
     if (radius == null || radius <= 0) {
-      setState(() => _error = 'Please enter a valid radius.');
+      setState(() => _error = AppStrings.t('workplace_form_radius_required'));
       return;
     }
     if (radius > _maxRadiusMeters) {
-      setState(() => _error = 'Radius is too large (max $_maxRadiusMeters m).');
+      setState(() => _error = AppStrings.t(
+          'workplace_form_radius_too_large', {'max': '$_maxRadiusMeters'}));
       return;
     }
 
@@ -184,7 +186,7 @@ class _WorkplaceFormScreenState extends State<WorkplaceFormScreen> {
     } on AdminServiceException catch (e) {
       setState(() => _error = e.message);
     } catch (_) {
-      setState(() => _error = 'Something went wrong. Please try again.');
+      setState(() => _error = AppStrings.t('common_something_wrong'));
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -197,19 +199,21 @@ class _WorkplaceFormScreenState extends State<WorkplaceFormScreen> {
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.surface,
         title: Text(
-          activating ? 'Activate this workplace?' : 'Deactivate this workplace?',
+          activating
+              ? AppStrings.t('workplace_form_activate_dialog_title')
+              : AppStrings.t('workplace_form_deactivate_dialog_title'),
           style: const TextStyle(color: AppColors.textPrimary),
         ),
         content: Text(
           activating
-              ? 'Employees will be able to start/end sessions here again.'
-              : 'Employees will no longer be matched to this workplace. Past sessions here are kept.',
+              ? AppStrings.t('workplace_form_activate_dialog_desc')
+              : AppStrings.t('workplace_form_deactivate_dialog_desc'),
           style: const TextStyle(color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            child: Text(AppStrings.t('common_cancel')),
           ),
           ElevatedButton(
             style: activating
@@ -219,7 +223,9 @@ class _WorkplaceFormScreenState extends State<WorkplaceFormScreen> {
                     foregroundColor: Colors.white,
                   ),
             onPressed: () => Navigator.of(context).pop(true),
-            child: Text(activating ? 'Activate' : 'Deactivate'),
+            child: Text(activating
+                ? AppStrings.t('admin_detail_activate_confirm')
+                : AppStrings.t('admin_detail_deactivate_confirm')),
           ),
         ],
       ),
@@ -237,12 +243,14 @@ class _WorkplaceFormScreenState extends State<WorkplaceFormScreen> {
       if (!mounted) return;
       setState(() => _isActive = activating);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(activating ? 'Workplace activated.' : 'Workplace deactivated.')),
+        SnackBar(content: Text(activating
+            ? AppStrings.t('workplace_form_activated_snackbar')
+            : AppStrings.t('workplace_form_deactivated_snackbar'))),
       );
     } on AdminServiceException catch (e) {
       setState(() => _error = e.message);
     } catch (_) {
-      setState(() => _error = 'Something went wrong. Please try again.');
+      setState(() => _error = AppStrings.t('common_something_wrong'));
     } finally {
       if (mounted) setState(() => _isUpdatingStatus = false);
     }
@@ -252,7 +260,11 @@ class _WorkplaceFormScreenState extends State<WorkplaceFormScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: Text(_isEditing ? 'Edit Workplace' : 'Add Workplace')),
+      appBar: AppBar(
+        title: Text(_isEditing
+            ? AppStrings.t('workplace_form_edit_title')
+            : AppStrings.t('workplace_form_add_title')),
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -264,25 +276,25 @@ class _WorkplaceFormScreenState extends State<WorkplaceFormScreen> {
 
   Widget _buildBody() {
     if (_captureState == _CaptureState.checking) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CircularProgressIndicator(color: AppColors.primary),
-            SizedBox(height: 24),
+            const CircularProgressIndicator(color: AppColors.primary),
+            const SizedBox(height: 24),
             Text(
-              'Capturing your location',
-              style: TextStyle(
+              AppStrings.t('workplace_form_capturing_title'),
+              style: const TextStyle(
                 color: AppColors.textPrimary,
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Text(
-              'Stand at the workplace before continuing.',
+              AppStrings.t('workplace_form_capturing_desc'),
               textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSecondary),
+              style: const TextStyle(color: AppColors.textSecondary),
             ),
           ],
         ),
@@ -297,10 +309,10 @@ class _WorkplaceFormScreenState extends State<WorkplaceFormScreen> {
           children: [
             const Icon(Icons.location_off_outlined, color: AppColors.error, size: 48),
             const SizedBox(height: 16),
-            const Text(
-              'Location error',
+            Text(
+              AppStrings.t('common_location_error_title'),
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 color: AppColors.textPrimary,
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -308,12 +320,13 @@ class _WorkplaceFormScreenState extends State<WorkplaceFormScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              _captureError ?? 'Something went wrong.',
+              _captureError ?? AppStrings.t('common_something_wrong'),
               textAlign: TextAlign.center,
               style: const TextStyle(color: AppColors.textSecondary),
             ),
             const SizedBox(height: 24),
-            ElevatedButton(onPressed: _captureLocation, child: const Text('Try Again')),
+            ElevatedButton(
+                onPressed: _captureLocation, child: Text(AppStrings.t('common_try_again'))),
           ],
         ),
       );
@@ -329,27 +342,31 @@ class _WorkplaceFormScreenState extends State<WorkplaceFormScreen> {
           ],
           _buildLocationCard(),
           const SizedBox(height: 20),
-          const Text('NAME', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+          Text(AppStrings.t('workplace_form_name_section'),
+              style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
           const SizedBox(height: 8),
           TextField(
             controller: _nameController,
             style: const TextStyle(color: AppColors.textPrimary),
-            decoration: const InputDecoration(hintText: 'e.g. Event Hall A'),
+            decoration: InputDecoration(hintText: AppStrings.t('workplace_form_name_hint')),
           ),
           const SizedBox(height: 16),
-          const Text('TYPE', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+          Text(AppStrings.t('workplace_form_type_section'),
+              style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
           const SizedBox(height: 8),
           SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(value: 'permanent', label: Text('Permanent')),
-              ButtonSegment(value: 'temporary', label: Text('Temporary')),
+            segments: [
+              ButtonSegment(value: 'permanent', label: Text(AppStrings.t('workplaces_permanent'))),
+              ButtonSegment(value: 'temporary', label: Text(AppStrings.t('workplaces_temporary'))),
             ],
             selected: {_type},
             onSelectionChanged: (selected) => setState(() => _type = selected.first),
           ),
           const SizedBox(height: 16),
           Text(
-            _freshPosition != null ? 'EXPECTED RADIUS' : 'RADIUS (METERS)',
+            _freshPosition != null
+                ? AppStrings.t('workplace_form_expected_radius')
+                : AppStrings.t('workplace_form_radius_meters'),
             style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
           ),
           const SizedBox(height: 8),
@@ -358,7 +375,7 @@ class _WorkplaceFormScreenState extends State<WorkplaceFormScreen> {
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             style: const TextStyle(color: AppColors.textPrimary),
-            decoration: const InputDecoration(hintText: 'e.g. 100'),
+            decoration: InputDecoration(hintText: AppStrings.t('workplace_form_radius_hint')),
             onChanged: (_) => setState(() {}),
           ),
           if (_freshPosition != null) ...[
@@ -374,7 +391,9 @@ class _WorkplaceFormScreenState extends State<WorkplaceFormScreen> {
                     width: 22,
                     child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
                   )
-                : Text(_isEditing ? 'SAVE CHANGES' : 'CREATE WORKPLACE'),
+                : Text(_isEditing
+                    ? AppStrings.t('workplace_form_save_button')
+                    : AppStrings.t('workplace_form_create_button')),
           ),
           if (_isEditing) ...[
             const SizedBox(height: 12),
@@ -389,7 +408,9 @@ class _WorkplaceFormScreenState extends State<WorkplaceFormScreen> {
                       width: 22,
                       child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
                     )
-                  : Text(_isActive ? 'DEACTIVATE WORKPLACE' : 'ACTIVATE WORKPLACE'),
+                  : Text(_isActive
+                      ? AppStrings.t('workplace_form_deactivate_button')
+                      : AppStrings.t('workplace_form_activate_button')),
             ),
           ],
         ],
@@ -416,7 +437,9 @@ class _WorkplaceFormScreenState extends State<WorkplaceFormScreen> {
               const Icon(Icons.my_location, color: AppColors.primary, size: 18),
               const SizedBox(width: 8),
               Text(
-                accuracy != null ? 'Captured location' : 'Stored location',
+                accuracy != null
+                    ? AppStrings.t('workplace_form_captured_location')
+                    : AppStrings.t('workplace_form_stored_location'),
                 style: const TextStyle(
                   color: AppColors.textPrimary,
                   fontWeight: FontWeight.w600,
@@ -428,21 +451,21 @@ class _WorkplaceFormScreenState extends State<WorkplaceFormScreen> {
           Text(
             latitude != null && longitude != null
                 ? '${latitude.toStringAsFixed(6)}, ${longitude.toStringAsFixed(6)}'
-                : 'Not captured yet.',
+                : AppStrings.t('workplace_form_not_captured'),
             style: const TextStyle(color: AppColors.textSecondary),
           ),
           if (accuracy != null) ...[
             const SizedBox(height: 2),
             Text(
-              'GPS accuracy: ±${accuracy.round()}m',
+              AppStrings.t('workplace_form_gps_accuracy', {'accuracy': '${accuracy.round()}'}),
               style: const TextStyle(color: AppColors.textSecondary),
             ),
           ],
           if (accuracy != null && accuracy > _poorAccuracyThresholdMeters) ...[
             const SizedBox(height: 8),
-            const Text(
-              '⚠ GPS accuracy is low. Move outdoors/away from tall buildings and recapture for a tighter reading.',
-              style: TextStyle(color: AppColors.secondary, fontSize: 12),
+            Text(
+              AppStrings.t('workplace_form_low_accuracy_warning'),
+              style: const TextStyle(color: AppColors.secondary, fontSize: 12),
             ),
           ],
           const SizedBox(height: 12),
@@ -455,7 +478,9 @@ class _WorkplaceFormScreenState extends State<WorkplaceFormScreen> {
                     child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
                   )
                 : const Icon(Icons.gps_fixed, size: 18),
-            label: Text(_isEditing ? 'Recalibrate at Current Location' : 'Recapture Location'),
+            label: Text(_isEditing
+                ? AppStrings.t('workplace_form_recalibrate')
+                : AppStrings.t('workplace_form_recapture')),
           ),
           if (_captureError != null && _isEditing) ...[
             const SizedBox(height: 8),
@@ -477,9 +502,12 @@ class _WorkplaceFormScreenState extends State<WorkplaceFormScreen> {
       ),
       child: Text(
         effective == null
-            ? 'Enter a radius to see the calibrated value.'
-            : 'Effective radius: ${effective}m  (${_radiusController.text.trim()}m expected '
-                '+ ±${accuracy.round()}m GPS accuracy)',
+            ? AppStrings.t('workplace_form_effective_radius_prompt')
+            : AppStrings.t('workplace_form_effective_radius', {
+                'effective': '$effective',
+                'expected': _radiusController.text.trim(),
+                'accuracy': '${accuracy.round()}',
+              }),
         style: const TextStyle(color: AppColors.textPrimary),
       ),
     );

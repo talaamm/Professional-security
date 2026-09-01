@@ -5,6 +5,7 @@ import '../models/active_employee_session.dart';
 import '../models/profile.dart';
 import '../models/unverified_session.dart';
 import '../services/admin_service.dart';
+import '../services/app_strings.dart';
 import '../services/auth_service.dart';
 import '../widgets/dashboard_section.dart';
 import '../widgets/error_banner.dart';
@@ -56,7 +57,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       });
     } catch (_) {
       if (!mounted) return;
-      setState(() => _error = 'Could not load the dashboard. Pull down to retry.');
+      setState(() => _error = AppStrings.t('admin_home_error'));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -70,8 +71,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       await _load();
       if (!mounted) return;
       final message = outcome == SessionReviewOutcome.verified
-          ? 'Session verified.'
-          : 'Session deleted.';
+          ? AppStrings.t('admin_home_session_verified_snackbar')
+          : AppStrings.t('admin_home_session_deleted_snackbar');
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
     }
   }
@@ -83,30 +84,29 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.surface,
         title: Text(
-          'End ${session.employeeName}\'s session?',
+          AppStrings.t('admin_home_end_dialog_title', {'name': session.employeeName}),
           style: const TextStyle(color: AppColors.textPrimary),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'This will immediately end their active session. It will be marked as '
-              'admin-ended and queued for review.',
-              style: TextStyle(color: AppColors.textSecondary),
+            Text(
+              AppStrings.t('admin_home_end_dialog_desc'),
+              style: const TextStyle(color: AppColors.textSecondary),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: reasonController,
               style: const TextStyle(color: AppColors.textPrimary),
-              decoration: const InputDecoration(hintText: 'Reason (optional)'),
+              decoration: InputDecoration(hintText: AppStrings.t('common_reason_optional_hint')),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            child: Text(AppStrings.t('common_cancel')),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -114,7 +114,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               foregroundColor: Colors.white,
             ),
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('End Session'),
+            child: Text(AppStrings.t('admin_home_end_dialog_confirm')),
           ),
         ],
       ),
@@ -130,13 +130,13 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       await _load();
       if (!mounted) return;
       ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Session ended.')));
+          .showSnackBar(SnackBar(content: Text(AppStrings.t('admin_home_session_ended'))));
     } on AdminServiceException catch (e) {
       if (!mounted) return;
       setState(() => _error = e.message);
     } catch (_) {
       if (!mounted) return;
-      setState(() => _error = 'Something went wrong. Please try again.');
+      setState(() => _error = AppStrings.t('common_something_wrong'));
     }
   }
 
@@ -145,11 +145,11 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Admin Dashboard'),
+        title: Text(AppStrings.t('admin_home_title')),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
-            tooltip: 'Log out',
+            tooltip: AppStrings.t('common_log_out'),
             onPressed: _authService.logout,
           ),
         ],
@@ -164,7 +164,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 padding: const EdgeInsets.all(24),
                 children: [
                   Text(
-                    'Welcome, ${widget.profile.fullName}',
+                    AppStrings.t('common_welcome', {'name': widget.profile.fullName}),
                     style: const TextStyle(
                       color: AppColors.textPrimary,
                       fontSize: 22,
@@ -177,9 +177,9 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                     const SizedBox(height: 16),
                   ],
                   DashboardSection(
-                    title: 'Currently Working',
+                    title: AppStrings.t('admin_home_currently_working'),
                     count: _active.length,
-                    emptyText: 'No employees are currently working.',
+                    emptyText: AppStrings.t('admin_home_no_active'),
                     children: _active
                         .map((session) => _ActiveSessionTile(
                               session: session,
@@ -189,9 +189,9 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                   ),
                   const SizedBox(height: 16),
                   DashboardSection(
-                    title: 'Unverified Sessions',
+                    title: AppStrings.t('admin_home_unverified_sessions'),
                     count: _unverified.length,
-                    emptyText: 'No sessions are waiting for review.',
+                    emptyText: AppStrings.t('admin_home_no_unverified'),
                     children: _unverified
                         .map((session) => _UnverifiedSessionTile(
                               session: session,
@@ -229,20 +229,25 @@ class _ActiveSessionTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '${session.workplaceLabel} · Since ${_formatTime(session.startedAt)}',
+            AppStrings.t('admin_home_since', {
+              'workplace': session.workplaceName != null || session.manualLocationName != null
+                  ? session.workplaceLabel
+                  : AppStrings.t('workplace_unknown'),
+              'time': _formatTime(session.startedAt),
+            }),
             style: const TextStyle(color: AppColors.textSecondary),
           ),
           if (session.isPendingReview)
-            const Text(
-              '⚠ Manual location entered',
-              style: TextStyle(color: AppColors.secondary, fontSize: 12),
+            Text(
+              AppStrings.t('admin_home_manual_flag'),
+              style: const TextStyle(color: AppColors.secondary, fontSize: 12),
             ),
         ],
       ),
       leading: const Icon(Icons.circle, color: AppColors.success, size: 12),
       trailing: IconButton(
         icon: const Icon(Icons.stop_circle_outlined, color: AppColors.error),
-        tooltip: 'End session',
+        tooltip: AppStrings.t('admin_home_end_session_tooltip'),
         onPressed: onEnd,
       ),
     );
@@ -269,11 +274,16 @@ class _UnverifiedSessionTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '${session.workplaceLabel} · ${_formatDate(session.startedAt)}',
+            AppStrings.t('admin_home_unverified_row_date', {
+              'workplace': session.workplaceName != null || session.manualLocationName != null
+                  ? session.workplaceLabel
+                  : AppStrings.t('workplace_unknown'),
+              'date': _formatDate(session.startedAt),
+            }),
             style: const TextStyle(color: AppColors.textSecondary),
           ),
           Text(
-            session.reason,
+            AppStrings.unverifiedReason(session.startNeedsReview, session.endNeedsReview),
             style: const TextStyle(color: AppColors.secondary, fontSize: 12),
           ),
         ],

@@ -4,6 +4,7 @@ import '../config/theme.dart';
 import '../models/work_session.dart';
 import '../models/workplace.dart';
 import '../services/admin_service.dart';
+import '../services/app_strings.dart';
 import '../widgets/error_banner.dart';
 import '../widgets/reason_dialog.dart';
 
@@ -59,7 +60,7 @@ class _AdminSessionEditScreenState extends State<AdminSessionEditScreen> {
       setState(() => _workplaces = workplaces);
     } catch (_) {
       if (!mounted) return;
-      setState(() => _error = 'Could not load the workplace list.');
+      setState(() => _error = AppStrings.t('session_edit_could_not_load_workplaces'));
     } finally {
       if (mounted) setState(() => _isLoadingWorkplaces = false);
     }
@@ -127,7 +128,7 @@ class _AdminSessionEditScreenState extends State<AdminSessionEditScreen> {
     } on AdminServiceException catch (e) {
       setState(() => _error = e.message);
     } catch (_) {
-      setState(() => _error = 'Something went wrong. Please try again.');
+      setState(() => _error = AppStrings.t('common_something_wrong'));
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -136,9 +137,9 @@ class _AdminSessionEditScreenState extends State<AdminSessionEditScreen> {
   Future<void> _confirmDelete() async {
     final reason = await showRequiredReasonDialog(
       context: context,
-      title: 'Delete this session?',
-      message: 'This permanently removes the session. This cannot be undone.',
-      confirmLabel: 'Delete',
+      title: AppStrings.t('session_edit_delete_dialog_title'),
+      message: AppStrings.t('session_edit_delete_dialog_desc'),
+      confirmLabel: AppStrings.t('session_edit_delete_confirm'),
     );
     if (reason == null) return;
 
@@ -154,7 +155,7 @@ class _AdminSessionEditScreenState extends State<AdminSessionEditScreen> {
     } on AdminServiceException catch (e) {
       setState(() => _error = e.message);
     } catch (_) {
-      setState(() => _error = 'Something went wrong. Please try again.');
+      setState(() => _error = AppStrings.t('common_something_wrong'));
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -164,7 +165,7 @@ class _AdminSessionEditScreenState extends State<AdminSessionEditScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Edit Session')),
+      appBar: AppBar(title: Text(AppStrings.t('session_edit_title'))),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(24),
@@ -173,23 +174,24 @@ class _AdminSessionEditScreenState extends State<AdminSessionEditScreen> {
               ErrorBanner(message: _error!),
               const SizedBox(height: 16),
             ],
-            const Text('STARTED',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+            Text(AppStrings.t('session_edit_started'),
+                style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
             const SizedBox(height: 8),
             OutlinedButton(
               onPressed: () => _pickDateTime(isStart: true),
               child: Text(_formatDateTime(_startedAt)),
             ),
             const SizedBox(height: 16),
-            const Text('ENDED', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+            Text(AppStrings.t('session_edit_ended'),
+                style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
             const SizedBox(height: 8),
             OutlinedButton(
               onPressed: () => _pickDateTime(isStart: false),
               child: Text(_formatDateTime(_endedAt)),
             ),
             const SizedBox(height: 16),
-            const Text('WORKPLACE',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+            Text(AppStrings.t('session_edit_workplace'),
+                style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
             const SizedBox(height: 8),
             _isLoadingWorkplaces
                 ? const Center(
@@ -203,9 +205,9 @@ class _AdminSessionEditScreenState extends State<AdminSessionEditScreen> {
                     dropdownColor: AppColors.surface,
                     style: const TextStyle(color: AppColors.textPrimary),
                     items: [
-                      const DropdownMenuItem<String?>(
+                      DropdownMenuItem<String?>(
                         value: null,
-                        child: Text('— Manual location —'),
+                        child: Text(AppStrings.t('session_edit_manual_option')),
                       ),
                       ..._workplaces.map(
                         (w) => DropdownMenuItem<String?>(value: w.id, child: Text(w.name)),
@@ -218,13 +220,13 @@ class _AdminSessionEditScreenState extends State<AdminSessionEditScreen> {
               TextField(
                 controller: _manualLocationController,
                 style: const TextStyle(color: AppColors.textPrimary),
-                decoration: const InputDecoration(hintText: 'e.g. Wedding Hall - Beit Hanina'),
+                decoration: InputDecoration(hintText: AppStrings.t('common_location_name_hint')),
                 onChanged: (_) => setState(() {}),
               ),
             ],
             const SizedBox(height: 16),
-            const Text('REASON FOR THIS CHANGE (OPTIONAL)',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+            Text(AppStrings.t('session_edit_reason_section'),
+                style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
             const SizedBox(height: 8),
             TextField(
               controller: _reasonController,
@@ -240,7 +242,7 @@ class _AdminSessionEditScreenState extends State<AdminSessionEditScreen> {
                       width: 22,
                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
                     )
-                  : const Text('SAVE CHANGES'),
+                  : Text(AppStrings.t('session_edit_save')),
             ),
             const SizedBox(height: 24),
             const Divider(color: AppColors.surface),
@@ -251,7 +253,7 @@ class _AdminSessionEditScreenState extends State<AdminSessionEditScreen> {
                 foregroundColor: AppColors.error,
                 side: const BorderSide(color: AppColors.error),
               ),
-              child: const Text('DELETE SESSION'),
+              child: Text(AppStrings.t('session_edit_delete')),
             ),
           ],
         ),

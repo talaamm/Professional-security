@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../config/theme.dart';
 import '../models/profile.dart';
+import '../services/app_strings.dart';
 import 'admin_employees_screen.dart';
 import 'admin_home_screen.dart';
 import 'admin_profile_screen.dart';
@@ -40,26 +41,26 @@ class _AdminRootScreenState extends State<AdminRootScreen> {
         backgroundColor: AppColors.surface,
         selectedItemColor: AppColors.primary,
         unselectedItemColor: AppColors.textSecondary,
-        items: const [
+        items: [
           BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
-            label: 'Home',
+            icon: const Icon(Icons.home_outlined),
+            activeIcon: const Icon(Icons.home),
+            label: AppStrings.t('nav_home'),
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.people_outline),
-            activeIcon: Icon(Icons.people),
-            label: 'Employees',
+            icon: const Icon(Icons.people_outline),
+            activeIcon: const Icon(Icons.people),
+            label: AppStrings.t('nav_employees'),
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.location_city_outlined),
-            activeIcon: Icon(Icons.location_city),
-            label: 'Workplaces',
+            icon: const Icon(Icons.location_city_outlined),
+            activeIcon: const Icon(Icons.location_city),
+            label: AppStrings.t('nav_workplaces'),
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            activeIcon: Icon(Icons.person),
-            label: 'Profile',
+            icon: const Icon(Icons.person_outline),
+            activeIcon: const Icon(Icons.person),
+            label: AppStrings.t('nav_profile'),
           ),
         ],
       ),

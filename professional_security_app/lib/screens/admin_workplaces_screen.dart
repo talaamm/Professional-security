@@ -4,6 +4,7 @@ import '../config/theme.dart';
 import '../models/profile.dart';
 import '../models/workplace.dart';
 import '../services/admin_service.dart';
+import '../services/app_strings.dart';
 import '../widgets/error_banner.dart';
 import 'workplace_form_screen.dart';
 
@@ -46,7 +47,7 @@ class _AdminWorkplacesScreenState extends State<AdminWorkplacesScreen> {
       setState(() => _error = e.message);
     } catch (_) {
       if (!mounted) return;
-      setState(() => _error = 'Could not load workplaces. Pull down to retry.');
+      setState(() => _error = AppStrings.t('workplaces_error'));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -67,11 +68,11 @@ class _AdminWorkplacesScreenState extends State<AdminWorkplacesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Workplaces')),
+      appBar: AppBar(title: Text(AppStrings.t('workplaces_title'))),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openForm(),
         icon: const Icon(Icons.add_location_alt_outlined),
-        label: const Text('Add Workplace'),
+        label: Text(AppStrings.t('workplaces_add_button')),
       ),
       body: RefreshIndicator(
         color: AppColors.primary,
@@ -87,12 +88,12 @@ class _AdminWorkplacesScreenState extends State<AdminWorkplacesScreen> {
                     const SizedBox(height: 16),
                   ],
                   if (_workplaces.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 24),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 24),
                       child: Center(
                         child: Text(
-                          'No workplaces yet. Tap "Add Workplace" to create one.',
-                          style: TextStyle(color: AppColors.textSecondary),
+                          AppStrings.t('workplaces_empty'),
+                          style: const TextStyle(color: AppColors.textSecondary),
                         ),
                       ),
                     )
@@ -146,8 +147,8 @@ class _WorkplaceCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${workplace.isPermanent ? 'Permanent' : 'Temporary'}  ·  '
-                    'Radius ${workplace.radiusMeters ?? '—'}m',
+                    '${workplace.isPermanent ? AppStrings.t('workplaces_permanent') : AppStrings.t('workplaces_temporary')}'
+                    '  ·  ${AppStrings.t('workplaces_radius', {'radius': '${workplace.radiusMeters ?? '—'}'})}',
                     style: const TextStyle(color: AppColors.textSecondary),
                   ),
                 ],
@@ -160,7 +161,7 @@ class _WorkplaceCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                isActive ? 'Active' : 'Inactive',
+                isActive ? AppStrings.t('common_active') : AppStrings.t('common_inactive'),
                 style: TextStyle(
                   color: isActive ? AppColors.success : AppColors.error,
                   fontSize: 11,
