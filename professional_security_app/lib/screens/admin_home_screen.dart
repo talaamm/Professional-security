@@ -6,15 +6,19 @@ import '../models/profile.dart';
 import '../models/unverified_session.dart';
 import '../services/admin_service.dart';
 import '../services/app_strings.dart';
-import '../services/auth_service.dart';
 import '../widgets/dashboard_section.dart';
 import '../widgets/error_banner.dart';
+import '../widgets/logout_helper.dart';
+import '../widgets/work_session_panel.dart';
 import 'session_review_screen.dart';
 
-/// Admin/super-admin landing page: who's currently working, and which
-/// completed sessions still need review. Admins and super admins are
-/// treated identically for now - the super-admin-over-admins hierarchy
-/// is a later phase.
+/// Admin/super-admin landing page: their own work-session status/start-
+/// finish action (WorkSessionPanel - always verified server-side for
+/// admin/super_admin, see
+/// db_files/phase7-admin-self-sessions-and-super-admin.sql), then who
+/// else is currently working and which completed sessions still need
+/// review. Admins and super admins are treated identically here - the
+/// super-admin-over-admins management lives in the Employees tab instead.
 class AdminHomeScreen extends StatefulWidget {
   final Profile profile;
 
@@ -26,7 +30,7 @@ class AdminHomeScreen extends StatefulWidget {
 
 class _AdminHomeScreenState extends State<AdminHomeScreen> {
   final _adminService = AdminService();
-  final _authService = AuthService();
+  final _panelKey = GlobalKey<WorkSessionPanelState>();
 
   List<ActiveEmployeeSession> _active = [];
   List<UnverifiedSession> _unverified = [];
@@ -150,14 +154,17 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: AppStrings.t('common_log_out'),
-            onPressed: _authService.logout,
+            onPressed: () => handleLogout(context, widget.profile.employeeId),
           ),
         ],
       ),
       body: RefreshIndicator(
         color: AppColors.primary,
         backgroundColor: AppColors.surface,
-        onRefresh: _load,
+        onRefresh: () => Future.wait([
+          _load(),
+          _panelKey.currentState?.refresh() ?? Future.value(),
+        ]),
         child: _isLoading
             ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
             : ListView(
@@ -172,6 +179,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
+                  WorkSessionPanel(key: _panelKey, profile: widget.profile),
+                  const SizedBox(height: 24),
                   if (_error != null) ...[
                     ErrorBanner(message: _error!),
                     const SizedBox(height: 16),
@@ -183,7 +192,14 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                     children: _active
                         .map((session) => _ActiveSessionTile(
                               session: session,
-                              onEnd: () => _endSession(session),
+                              // An admin ends their own session via Finish
+                              // Work (WorkSessionPanel above), not this
+                              // dashboard action - the backend rejects it
+                              // anyway (see admin_end_work_session), but
+                              // hiding the button avoids a confusing error.
+                              onEnd: session.employeeId == widget.profile.employeeId
+                                  ? null
+                                  : () => _endSession(session),
                             ))
                         .toList(),
                   ),
@@ -208,7 +224,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 
 class _ActiveSessionTile extends StatelessWidget {
   final ActiveEmployeeSession session;
-  final VoidCallback onEnd;
+  final VoidCallback? onEnd;
 
   const _ActiveSessionTile({required this.session, required this.onEnd});
 
@@ -245,11 +261,13 @@ class _ActiveSessionTile extends StatelessWidget {
         ],
       ),
       leading: const Icon(Icons.circle, color: AppColors.success, size: 12),
-      trailing: IconButton(
-        icon: const Icon(Icons.stop_circle_outlined, color: AppColors.error),
-        tooltip: AppStrings.t('admin_home_end_session_tooltip'),
-        onPressed: onEnd,
-      ),
+      trailing: onEnd == null
+          ? null
+          : IconButton(
+              icon: const Icon(Icons.stop_circle_outlined, color: AppColors.error),
+              tooltip: AppStrings.t('admin_home_end_session_tooltip'),
+              onPressed: onEnd,
+            ),
     );
   }
 }

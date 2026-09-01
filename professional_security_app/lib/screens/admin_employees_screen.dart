@@ -12,14 +12,20 @@ import '../widgets/dashboard_section.dart';
 import '../widgets/error_banner.dart';
 import 'admin_employee_detail_screen.dart';
 
-/// Employees tab: open issue reports at the top (raised via the employee
-/// Home screen's "Having Issue? Tell the admin" button), then search for
-/// an employee by name or employee ID (case-insensitive, substring match -
-/// works for Arabic/Hebrew names the same as Latin ones). An ID search
-/// naturally returns just the one matching employee since employee_id is
-/// unique; a name search returns everyone whose name contains that text.
+/// Employees tab: for a super admin, administrator accounts at the very
+/// top (see _loadAdmins) - super admins have the same control over admin
+/// accounts that admins have over employees, one tier down only (see
+/// db_files/phase7-admin-self-sessions-and-super-admin.sql). Then open
+/// issue reports (raised via the employee Home screen's "Having Issue?
+/// Tell the admin" button), then search for an employee by name or
+/// employee ID (case-insensitive, substring match - works for Arabic/
+/// Hebrew names the same as Latin ones). An ID search naturally returns
+/// just the one matching employee since employee_id is unique; a name
+/// search returns everyone whose name contains that text.
 class AdminEmployeesScreen extends StatefulWidget {
-  const AdminEmployeesScreen({super.key});
+  final Profile profile;
+
+  const AdminEmployeesScreen({super.key, required this.profile});
 
   @override
   State<AdminEmployeesScreen> createState() => _AdminEmployeesScreenState();
@@ -43,11 +49,18 @@ class _AdminEmployeesScreenState extends State<AdminEmployeesScreen> {
   bool _isLoadingResetRequests = true;
   String? _resetRequestsError;
 
+  List<Profile> _admins = [];
+  bool _isLoadingAdmins = true;
+  String? _adminsError;
+
+  bool get _isSuperAdmin => widget.profile.role == UserRole.superAdmin;
+
   @override
   void initState() {
     super.initState();
     _loadIssues();
     _loadResetRequests();
+    if (_isSuperAdmin) _loadAdmins();
   }
 
   @override
@@ -131,6 +144,36 @@ class _AdminEmployeesScreenState extends State<AdminEmployeesScreen> {
     }
   }
 
+  Future<void> _loadAdmins() async {
+    setState(() {
+      _isLoadingAdmins = true;
+      _adminsError = null;
+    });
+
+    try {
+      final admins = await _adminService.fetchAllAdmins();
+      if (!mounted) return;
+      setState(() => _admins = admins);
+    } on AdminServiceException catch (e) {
+      if (!mounted) return;
+      setState(() => _adminsError = e.message);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _adminsError = AppStrings.t('admin_employees_could_not_load_admins'));
+    } finally {
+      if (mounted) setState(() => _isLoadingAdmins = false);
+    }
+  }
+
+  Future<void> _openAdmin(Profile admin) async {
+    await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => AdminEmployeeDetailScreen(employee: admin, viewerRole: widget.profile.role),
+      ),
+    );
+    await _loadAdmins();
+  }
+
   Future<void> _openEmployeeById(String employeeId) async {
     try {
       final employee = await _adminService.fetchEmployeeByEmployeeId(employeeId);
@@ -187,13 +230,22 @@ class _AdminEmployeesScreenState extends State<AdminEmployeesScreen> {
 
   Future<void> _openEmployee(Profile employee) async {
     final changed = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => AdminEmployeeDetailScreen(employee: employee)),
+      MaterialPageRoute(
+        builder: (_) => AdminEmployeeDetailScreen(employee: employee, viewerRole: widget.profile.role),
+      ),
     );
     // The detail screen's Reset Password action auto-resolves that
     // employee's open request server-side without telling this screen -
     // reload both queues so a stale, already-resolved row doesn't linger
     // (and fail with "already resolved") after coming back from it.
-    await Future.wait([_loadIssues(), _loadResetRequests()]);
+    await Future.wait([
+      _loadIssues(),
+      _loadResetRequests(),
+      // A promotion to admin only shows up here, not in an employee
+      // search - reload it too so it appears without needing to leave
+      // and reopen this tab.
+      if (_isSuperAdmin) _loadAdmins(),
+    ]);
     if (changed == true) {
       await _search(_searchController.text);
     }
@@ -207,12 +259,34 @@ class _AdminEmployeesScreenState extends State<AdminEmployeesScreen> {
       body: RefreshIndicator(
         color: AppColors.primary,
         backgroundColor: AppColors.surface,
-        onRefresh: () => Future.wait([_loadIssues(), _loadResetRequests()]),
-        child: (_isLoadingIssues || _isLoadingResetRequests)
+        onRefresh: () => Future.wait([
+          _loadIssues(),
+          _loadResetRequests(),
+          if (_isSuperAdmin) _loadAdmins(),
+        ]),
+        child: (_isLoadingIssues || _isLoadingResetRequests || (_isSuperAdmin && _isLoadingAdmins))
             ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
             : ListView(
                 padding: const EdgeInsets.all(24),
                 children: [
+                  if (_isSuperAdmin) ...[
+                    if (_adminsError != null) ...[
+                      ErrorBanner(message: _adminsError!),
+                      const SizedBox(height: 16),
+                    ],
+                    DashboardSection(
+                      title: AppStrings.t('admin_employees_administrators_section'),
+                      count: _admins.length,
+                      emptyText: AppStrings.t('admin_employees_no_admins'),
+                      children: _admins
+                          .map((admin) => _AdminTile(
+                                admin: admin,
+                                onTap: () => _openAdmin(admin),
+                              ))
+                          .toList(),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   if (_issuesError != null) ...[
                     ErrorBanner(message: _issuesError!),
                     const SizedBox(height: 16),
@@ -361,6 +435,52 @@ class _IssueTile extends StatelessWidget {
         style: OutlinedButton.styleFrom(minimumSize: const Size(64, 36)),
         onPressed: onDone,
         child: Text(AppStrings.t('common_done')),
+      ),
+    );
+  }
+}
+
+class _AdminTile extends StatelessWidget {
+  final Profile admin;
+  final VoidCallback onTap;
+
+  const _AdminTile({required this.admin, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final isActive = admin.status == UserStatus.active;
+
+    return ListTile(
+      onTap: onTap,
+      title: Text(
+        admin.fullName,
+        style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+      ),
+      subtitle: Text(
+        AppStrings.t('admin_employees_id_prefix', {'id': admin.employeeId}),
+        style: const TextStyle(color: AppColors.textSecondary),
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: (isActive ? AppColors.success : AppColors.error).withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              isActive ? AppStrings.t('common_active') : AppStrings.t('common_inactive'),
+              style: TextStyle(
+                color: isActive ? AppColors.success : AppColors.error,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+        ],
       ),
     );
   }

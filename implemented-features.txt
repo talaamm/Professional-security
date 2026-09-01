@@ -938,3 +938,54 @@ Next step: run the app, switch languages from Profile on each side (employee and
 ✻ Churned for 33m 35s · done 5:17 PM
 
 ---
+
+
+Summary
+
+New DB migration — db_files/phase7-admin-self-sessions-and-super-admin.sql (you need to run this in the Supabase SQL editor):
+- work_sessions.ended_by column (mirrors verified_by) — records who actually performed the end action.
+- start_work_session() / end_work_session() / end_work_session_for_logout() are now role-aware: an admin/super_admin's own session is always recorded as verified on both sides — no GPS-distance gate, no manual-review fallback. Reuses the existing session_source enum (its labels already match user_role) rather than adding lookup logic.
+- admin_end_work_session() now records ended_by, and blocks an admin from force-ending their own session (closes a side-door that would've bypassed "always verified").
+- admin_unverified_sessions() now also returns endes (the reason, which was already being storedthere).
+- super_admin_set_admin_status() / super_admin_resehe existing employee-management functions,restricted to super_admin callers and role = 'admin' targets only (never another super admin, never themselves).
+
+Flutter changes:
+- Who ended a session: session_review_screen.dart n}" box with their reason underneath, whenever thesession was ended by someone other than its own employee.
+- Admin self-sessions: extracted the status-card + e_screen.dart into a shared WorkSessionPanel widget, now embedded in both the employee Home screen (unchanged behavior) and the new admin Home screen. Zero changes needed to
+  WorkSessionService, StartWorkScreen, or EndWorkScince the "always verified" logic lives entirelyserver-side.
+- "My Work Sessions" tab: added to the admin nav barbatim — it already scopes to the caller's ownsessions regardless of role.
+- Admin/super-admin logout now uses the same active (handleLogout), since they can have active sessions now.
+- Super-admin over admins: AdminEmployeesScreen gaion (visible only to super admins) listing adminaccounts; tapping one opens the existing AdminEmployeeDetailScreen unchanged — it already works generically for sessions/reports, and now routes activate/deactivate/reset-passwordfunctions when the target is an admin.
+- All new UI text translated in English/Arabic/Hebrew.
+
+Next steps for you:                                                                                                                  Run db_files/phase7-admin-self-sessions-and-supeQL editor.
+2. As an employee-turned-unverified-session case (or via the admin "End Session" button), confirm the review screen shows "Ended by" + reason correctly.
+3. Log in as an admin: confirm Home shows a Start/Finish Work panel, sessions always come back "Verified", and "My Work Sessions"    lists/reports only your own sessions.
+4. Promote a test account to super_admin directly in Supabase, confirm the Employees tab shows an "Administrators" section, and test activate/deactivate + password reset on an admin admin never sees that section).
+
+✻ Brewed for 16m 27s · done 6:19 PM
+
+---
+
+
+Summary
+
+New migration — db_files/phase7-role-management.sql (run this in the Supabase SQL editor):
+- super_admin_set_account_role(employee_id, new_role, reason?) — lets a super admin promote an employee to admin, or demote an admin back to employee. Restricted to super_admin callers; blocks targeting a super_admin, blocks self-targeting, and rejects demoting an admin whose employee ID isn't 9 digits (would otherwise fail on the profile's existing format constraint) with a clear message instead of a raw DB error.
+- Security fix bundled in, worth flagging explicitly: the profiles_update_admin RLS policy previously let any admin update any column on any profile — including role — via a direct Supabase client call, since it only checked "is the caller an admin," with no restriction on what they could set. The schema's own comment had flagged this as deferred ("role-management restrictions will be handled by secure functions later"). I verified nothing in the app relies on that broad policy (every profile write already goes through a dedicated function), so I narrowed it to only ever allow touching a row that is — and stays — role = 'employee'. This closes a real self-promotion path (an admin could otherwise grant themselves or anyone admin access by bypassing the UI entirely) without affecting any existing feature.
+
+Flutter changes:
+- AdminEmployeeDetailScreen now takes the viewer's own role and shows a "MAKE ADMIN" / "REMOVE ADMIN ACCESS" button (super-admin viewers only) below Reset Password, with a confirm dialog. Updates in place afterward, so the button/labels reflect the new role immediately without reopening the screen.
+- AdminService.setAccountRole() added.
+- Both places that open this screen (employee search results, the Administrators list) now pass the viewer's role and refresh appropriately — a promoted employee shows up in Administrators next time it's viewed; a demoted admin drops out of it immediately.
+- All new strings translated (English/Arabic/Hebrew).
+
+Next steps for you:
+1. Run db_files/phase7-role-management.sql in the Supabase SQL editor.
+2. As a super admin, search for a test employee, tap "MAKE ADMIN," confirm they land on the admin experience next login (and appear under Administrators).
+3. Reverse it with "REMOVE ADMIN ACCESS" and confirm they're back to the employee experience.
+4. Confirm a plain admin never sees this button anywhere, and that trying to call the function directly against your own account (self-targeting) is rejected.
+
+✻ Crunched for 6m 53s · done 7:22 PM
+
+---

@@ -384,6 +384,70 @@ class AdminService {
     }
   }
 
+  /// All admin accounts (role = 'admin'), name-sorted - for a super
+  /// admin's "Administrators" section on the Employees tab. Relies on the
+  /// existing profiles_select_admin RLS policy (any admin/super_admin can
+  /// already read every profile row) - only the write actions below are
+  /// restricted to super_admin, via their own SECURITY DEFINER functions.
+  Future<List<Profile>> fetchAllAdmins() async {
+    try {
+      final data = await _client.from('profiles').select().eq('role', 'admin').order('full_name');
+      return (data as List).map((row) => Profile.fromMap(row as Map<String, dynamic>)).toList();
+    } on PostgrestException catch (e) {
+      throw AdminServiceException(e.message);
+    }
+  }
+
+  /// Promotes an employee to admin, or demotes an admin back to a plain
+  /// employee. Only callable by a super admin; blocked server-side for
+  /// super_admin targets and for a super admin targeting themself.
+  Future<void> setAccountRole({
+    required String employeeId,
+    required bool makeAdmin,
+    String? reason,
+  }) async {
+    try {
+      await _client.rpc('super_admin_set_account_role', params: {
+        'p_employee_id': employeeId,
+        'p_new_role': makeAdmin ? 'admin' : 'employee',
+        'p_reason': reason,
+      });
+    } on PostgrestException catch (e) {
+      throw AdminServiceException(e.message);
+    }
+  }
+
+  /// Activates/deactivates an admin account. Only callable by a super
+  /// admin; blocked server-side for non-admin accounts and for a super
+  /// admin targeting their own account.
+  Future<void> setAdminStatus({
+    required String employeeId,
+    required bool active,
+    String? reason,
+  }) async {
+    try {
+      await _client.rpc('super_admin_set_admin_status', params: {
+        'p_employee_id': employeeId,
+        'p_status': active ? 'active' : 'inactive',
+        'p_reason': reason,
+      });
+    } on PostgrestException catch (e) {
+      throw AdminServiceException(e.message);
+    }
+  }
+
+  /// Resets an admin's password to the fixed default "123456". Only
+  /// callable by a super admin.
+  Future<void> resetAdminPassword(String employeeId) async {
+    try {
+      await _client.rpc('super_admin_reset_admin_password', params: {
+        'p_employee_id': employeeId,
+      });
+    } on PostgrestException catch (e) {
+      throw AdminServiceException(e.message);
+    }
+  }
+
   /// One employee's profile by employee_id - used to open the same detail
   /// screen from an issue report card that searching-then-tapping would.
   /// Relies on the existing profiles_select_admin RLS policy.

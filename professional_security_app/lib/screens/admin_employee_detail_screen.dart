@@ -17,12 +17,20 @@ import 'admin_session_edit_screen.dart';
 /// the same way as before, just no longer loaded (and re-fetched on
 /// every visit) for the employee's entire history up front.
 ///
-/// Pops `true` if the employee's status was changed, so the search screen
-/// knows to refresh.
+/// Pops `true` if the employee's status/role was changed, so the caller
+/// screen knows to refresh.
 class AdminEmployeeDetailScreen extends StatefulWidget {
   final Profile employee;
 
-  const AdminEmployeeDetailScreen({super.key, required this.employee});
+  /// The signed-in viewer's own role - only a super admin sees the
+  /// promote/demote-role action (db_files/phase7-role-management.sql).
+  final UserRole viewerRole;
+
+  const AdminEmployeeDetailScreen({
+    super.key,
+    required this.employee,
+    required this.viewerRole,
+  });
 
   @override
   State<AdminEmployeeDetailScreen> createState() => _AdminEmployeeDetailScreenState();
@@ -38,8 +46,21 @@ class _AdminEmployeeDetailScreenState extends State<AdminEmployeeDetailScreen> {
 
   late UserStatus _status = widget.employee.status;
   bool _isUpdatingStatus = false;
+  late UserRole _role = widget.employee.role;
+  bool _isUpdatingRole = false;
   bool _changed = false;
   String? _error;
+
+  // Managing an admin account (a super admin's privilege, mirroring how
+  // admins manage employee accounts) goes through different SECURITY
+  // DEFINER functions than managing an employee - see
+  // db_files/phase7-admin-self-sessions-and-super-admin.sql. Everything
+  // else on this screen (sessions, reports) already works for any role.
+  // Reads live _role (not widget.employee.role) so it stays correct right
+  // after a promote/demote, without needing to reopen the screen.
+  bool get _isAdminTarget => _role == UserRole.admin;
+
+  bool get _canManageRole => widget.viewerRole == UserRole.superAdmin;
 
   late DateTime _reportMonth = _clampToMonthRange(
     DateTime(DateTime.now().year, DateTime.now().month),
@@ -189,7 +210,11 @@ class _AdminEmployeeDetailScreenState extends State<AdminEmployeeDetailScreen> {
     setState(() => _error = null);
 
     try {
-      await _adminService.resetEmployeePassword(widget.employee.employeeId);
+      if (_isAdminTarget) {
+        await _adminService.resetAdminPassword(widget.employee.employeeId);
+      } else {
+        await _adminService.resetEmployeePassword(widget.employee.employeeId);
+      }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(AppStrings.t('admin_detail_password_reset_snackbar'))),
@@ -208,10 +233,17 @@ class _AdminEmployeeDetailScreenState extends State<AdminEmployeeDetailScreen> {
     });
 
     try {
-      await _adminService.setEmployeeStatus(
-        employeeId: widget.employee.employeeId,
-        active: activate,
-      );
+      if (_isAdminTarget) {
+        await _adminService.setAdminStatus(
+          employeeId: widget.employee.employeeId,
+          active: activate,
+        );
+      } else {
+        await _adminService.setEmployeeStatus(
+          employeeId: widget.employee.employeeId,
+          active: activate,
+        );
+      }
       if (!mounted) return;
       setState(() {
         _status = activate ? UserStatus.active : UserStatus.inactive;
@@ -228,6 +260,81 @@ class _AdminEmployeeDetailScreenState extends State<AdminEmployeeDetailScreen> {
       setState(() => _error = AppStrings.t('common_something_wrong'));
     } finally {
       if (mounted) setState(() => _isUpdatingStatus = false);
+    }
+  }
+
+  Future<void> _confirmToggleRole() async {
+    final promoting = _role == UserRole.employee;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: Text(
+          promoting
+              ? AppStrings.t('admin_detail_make_admin_dialog_title')
+              : AppStrings.t('admin_detail_remove_admin_dialog_title'),
+          style: const TextStyle(color: AppColors.textPrimary),
+        ),
+        content: Text(
+          promoting
+              ? AppStrings.t('admin_detail_make_admin_dialog_desc', {'name': widget.employee.fullName})
+              : AppStrings.t('admin_detail_remove_admin_dialog_desc', {'name': widget.employee.fullName}),
+          style: const TextStyle(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(AppStrings.t('common_cancel')),
+          ),
+          ElevatedButton(
+            style: promoting
+                ? null
+                : ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.error,
+                    foregroundColor: Colors.white,
+                  ),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(promoting
+                ? AppStrings.t('admin_detail_make_admin')
+                : AppStrings.t('admin_detail_remove_admin')),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await _toggleRole(promoting);
+    }
+  }
+
+  Future<void> _toggleRole(bool makeAdmin) async {
+    setState(() {
+      _isUpdatingRole = true;
+      _error = null;
+    });
+
+    try {
+      await _adminService.setAccountRole(
+        employeeId: widget.employee.employeeId,
+        makeAdmin: makeAdmin,
+      );
+      if (!mounted) return;
+      setState(() {
+        _role = makeAdmin ? UserRole.admin : UserRole.employee;
+        _changed = true;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppStrings.t(
+          makeAdmin ? 'admin_detail_role_changed_to_admin' : 'admin_detail_role_changed_to_employee',
+          {'name': widget.employee.fullName},
+        ))),
+      );
+    } on AdminServiceException catch (e) {
+      setState(() => _error = e.message);
+    } catch (_) {
+      setState(() => _error = AppStrings.t('common_something_wrong'));
+    } finally {
+      if (mounted) setState(() => _isUpdatingRole = false);
     }
   }
 
@@ -380,6 +487,24 @@ class _AdminEmployeeDetailScreenState extends State<AdminEmployeeDetailScreen> {
                 onPressed: _confirmResetPassword,
                 child: Text(AppStrings.t('admin_detail_reset_password')),
               ),
+              if (_canManageRole) ...[
+                const SizedBox(height: 12),
+                OutlinedButton(
+                  onPressed: _isUpdatingRole ? null : _confirmToggleRole,
+                  style: _isAdminTarget
+                      ? OutlinedButton.styleFrom(foregroundColor: AppColors.error)
+                      : null,
+                  child: _isUpdatingRole
+                      ? const SizedBox(
+                          height: 22,
+                          width: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                        )
+                      : Text(_isAdminTarget
+                          ? AppStrings.t('admin_detail_remove_admin')
+                          : AppStrings.t('admin_detail_make_admin')),
+                ),
+              ],
               const SizedBox(height: 28),
               Text(
                 AppStrings.t('admin_detail_work_sessions_section'),

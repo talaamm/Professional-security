@@ -11,6 +11,9 @@ class UnverifiedSession {
   final DateTime endedAt;
   final String startVerification;
   final String endVerification;
+  final String? endedBy;
+  final String? endedByName;
+  final String? notes;
 
   const UnverifiedSession({
     required this.sessionId,
@@ -23,7 +26,17 @@ class UnverifiedSession {
     required this.endedAt,
     required this.startVerification,
     required this.endVerification,
+    this.endedBy,
+    this.endedByName,
+    this.notes,
   });
+
+  /// True when someone other than the employee themself ended this
+  /// session - i.e. an admin force-ended it from the dashboard. A
+  /// self-ended session (the normal case, or a GPS mismatch) isn't
+  /// worth calling out since it's the employee's own name at the top
+  /// of the review screen already.
+  bool get endedByAdmin => endedBy != null && endedBy != employeeId;
 
   bool get startNeedsReview => startVerification != 'verified';
   bool get endNeedsReview => endVerification != 'verified';
@@ -59,6 +72,9 @@ class UnverifiedSession {
       endedAt: DateTime.parse(map['ended_at'] as String).toLocal(),
       startVerification: map['start_verification'] as String,
       endVerification: map['end_verification'] as String,
+      endedBy: map['ended_by'] as String?,
+      endedByName: map['ended_by_name'] as String?,
+      notes: map['notes'] as String?,
     );
   }
 }

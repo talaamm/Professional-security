@@ -7,10 +7,15 @@ import 'admin_employees_screen.dart';
 import 'admin_home_screen.dart';
 import 'admin_profile_screen.dart';
 import 'admin_workplaces_screen.dart';
+import 'history_screen.dart';
 
-/// Bottom-navigation shell for admins/super admins: Home, Employees,
-/// Workplaces, Profile. Each tab is a self-contained screen (own
-/// Scaffold/AppBar); this widget only owns which one is showing.
+/// Bottom-navigation shell for admins/super admins: Home, My Work
+/// Sessions, Employees, Workplaces, Profile. Each tab is a
+/// self-contained screen (own Scaffold/AppBar); this widget only owns
+/// which one is showing. "My Work Sessions" reuses HistoryScreen as-is
+/// (see db_files/phase7-admin-self-sessions-and-super-admin.sql) -
+/// it already scopes to the signed-in user's own employee_id and
+/// works unchanged for an admin/super_admin profile.
 class AdminRootScreen extends StatefulWidget {
   final Profile profile;
 
@@ -27,7 +32,8 @@ class _AdminRootScreenState extends State<AdminRootScreen> {
   Widget build(BuildContext context) {
     final pages = [
       AdminHomeScreen(profile: widget.profile),
-      const AdminEmployeesScreen(),
+      HistoryScreen(profile: widget.profile),
+      AdminEmployeesScreen(profile: widget.profile),
       AdminWorkplacesScreen(profile: widget.profile),
       AdminProfileScreen(profile: widget.profile),
     ];
@@ -46,6 +52,10 @@ class _AdminRootScreenState extends State<AdminRootScreen> {
             icon: const Icon(Icons.home_outlined),
             activeIcon: const Icon(Icons.home),
             label: AppStrings.t('nav_home'),
+          ),
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.history),
+            label: AppStrings.t('nav_my_work_sessions'),
           ),
           BottomNavigationBarItem(
             icon: const Icon(Icons.people_outline),

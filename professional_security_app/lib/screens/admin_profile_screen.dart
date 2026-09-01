@@ -4,15 +4,15 @@ import '../config/theme.dart';
 import '../models/profile.dart';
 import '../services/admin_service.dart';
 import '../services/app_strings.dart';
-import '../services/auth_service.dart';
 import '../widgets/language_picker.dart';
+import '../widgets/logout_helper.dart';
 import 'change_password_screen.dart';
 
 /// Admin/super-admin profile: their name and role, how many employee
 /// accounts are currently active (able to sign in - not necessarily
 /// working right now), a language preference, change-password, and
-/// logout. No active-session warning on logout here - admins don't have
-/// work sessions of their own.
+/// logout. Uses the same active-session-warning logout as employees,
+/// since admins can now have their own work sessions too.
 class AdminProfileScreen extends StatefulWidget {
   final Profile profile;
 
@@ -24,7 +24,6 @@ class AdminProfileScreen extends StatefulWidget {
 
 class _AdminProfileScreenState extends State<AdminProfileScreen> {
   final _adminService = AdminService();
-  final _authService = AuthService();
 
   int? _activeEmployeeCount;
   bool _isLoading = true;
@@ -71,7 +70,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: AppStrings.t('common_log_out'),
-            onPressed: _authService.logout,
+            onPressed: () => handleLogout(context, widget.profile.employeeId),
           ),
         ],
       ),

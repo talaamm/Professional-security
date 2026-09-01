@@ -183,6 +183,43 @@ class _SessionReviewScreenState extends State<SessionReviewScreen> {
               ],
             ),
           ),
+          if (session.endedByAdmin) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.error.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.error.withValues(alpha: 0.4)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.admin_panel_settings_outlined, color: AppColors.error, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          AppStrings.t('session_review_ended_by',
+                              {'name': session.endedByName ?? session.endedBy!}),
+                          style: const TextStyle(color: AppColors.error, fontWeight: FontWeight.w600),
+                        ),
+                        if (session.notes != null && session.notes!.trim().isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            AppStrings.t('session_review_ended_by_reason', {'reason': session.notes!}),
+                            style: const TextStyle(color: AppColors.error),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 20),
           if (_error != null) ...[
             ErrorBanner(message: _error!),
