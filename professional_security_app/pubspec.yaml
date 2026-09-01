@@ -72,6 +72,8 @@ flutter:
     - assets/lang/en.json
     - assets/lang/ar.json
     - assets/lang/he.json
+    # Company logo, shown on the Login screen.
+    - assets/images/logo.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:

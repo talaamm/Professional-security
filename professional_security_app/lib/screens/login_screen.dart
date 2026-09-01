@@ -88,18 +88,14 @@ class _LoginScreenState extends State<LoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 24),
-                const _ShieldLogo(),
-                const SizedBox(height: 20),
-                Text(
-                  AppStrings.t('login_title'),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
+                Center(
+                  child: Image.asset(
+                    'assets/images/logo.png',
+                    width: 180,
+                    semanticLabel: 'Professional Security',
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 20),
                 Text(
                   AppStrings.t('login_subtitle'),
                   textAlign: TextAlign.center,
@@ -206,33 +202,6 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _ShieldLogo extends StatelessWidget {
-  const _ShieldLogo();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Container(
-        width: 72,
-        height: 72,
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppColors.primary, width: 1.5),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withValues(alpha: 0.4),
-              blurRadius: 16,
-              spreadRadius: 1,
-            ),
-          ],
-        ),
-        child: const Icon(Icons.shield_outlined, color: AppColors.primary, size: 32),
       ),
     );
   }

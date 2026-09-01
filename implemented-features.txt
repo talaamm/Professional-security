@@ -989,3 +989,15 @@ Next steps for you:
 ✻ Crunched for 6m 53s · done 7:22 PM
 
 ---
+
+Summary
+
+What changed:
+- Moved logo.png (it's actually a JPEG despite the .png name — harmless, Flutter decodes by content not extension) into professional_security_app/assets/images/logo.png and registered it in pubspec.yaml.
+- login_screen.dart now shows the logo (180px wide, centered) at the top in place of the old placeholder shield icon.
+- Removed the separate "Professional Security" title text below the logo — the logo image already has that text baked in, so keeping both would've been duplicated. The subtitle ("Enter your credentials...") stays. Cleaned up the now-unused login_title key from all three translation files and deleted the leftover _ShieldLogo widget.
+- Removed the original logo.png from the repo root now that it lives in the app's assets.
+
+Verification: flutter pub get + flutter analyze — 0 issues. Couldn't visually preview it live (no device/emulator here) — worth a quick look once you run the app to confirm the logo's dark background blends acceptably against the screen background.
+
+✻ Churned for 3m 23s · done 8:07 PM
