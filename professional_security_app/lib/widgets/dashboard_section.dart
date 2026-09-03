@@ -29,7 +29,7 @@ class DashboardSection extends StatelessWidget {
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
-          initiallyExpanded: true,
+          initiallyExpanded: false,
           iconColor: AppColors.primary,
           collapsedIconColor: AppColors.textSecondary,
           title: Text(

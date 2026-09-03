@@ -1058,3 +1058,15 @@ This was a leftover scheduled check-in from earlier in the session (I mistakenly
 - All dev processes (flutter, dart, the test Chrome windows) were shut down afterward, and flutter analyze came back clean.
 
 Nothing further to do here — the earlier summary already covers this. Let me know if you'd like me to re-verify anything or move on to the next feature.
+
+---
+
+What changed
+
+dashboard_section.dart — the shared DashboardSection widget (used by both the admin/super-admin Home page's "Currently Working" / "Unverified Sessions" lists, and the Employees tab's "Administrators" / "Password Reset Requests" / "Reported Issues" lists) now has initiallyExpanded: false. Each section still shows its title and count, and expands on tap like a normal ExpansionTile.
+
+Files changed: professional_security_app/lib/widgets/dashboard_section.dart (1 line).
+
+Verification: flutter analyze — no issues.
+
+✻ Crunched for 1m 31s · done 4:04 PM
