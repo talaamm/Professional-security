@@ -11,6 +11,7 @@ import '../services/app_strings.dart';
 import '../widgets/dashboard_section.dart';
 import '../widgets/error_banner.dart';
 import 'admin_employee_detail_screen.dart';
+import 'admin_register_employee_screen.dart';
 
 /// Employees tab: for a super admin, administrator accounts at the very
 /// top (see _loadAdmins) - super admins have the same control over admin
@@ -228,6 +229,15 @@ class _AdminEmployeesScreenState extends State<AdminEmployeesScreen> {
     }
   }
 
+  Future<void> _openRegisterEmployee() async {
+    final created = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => const AdminRegisterEmployeeScreen()),
+    );
+    if (created == true) {
+      await _search(_searchController.text);
+    }
+  }
+
   Future<void> _openEmployee(Profile employee) async {
     final changed = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
@@ -269,6 +279,12 @@ class _AdminEmployeesScreenState extends State<AdminEmployeesScreen> {
             : ListView(
                 padding: const EdgeInsets.all(24),
                 children: [
+                  ElevatedButton.icon(
+                    onPressed: _openRegisterEmployee,
+                    icon: const Icon(Icons.person_add_alt_1),
+                    label: Text(AppStrings.t('admin_employees_register_button')),
+                  ),
+                  const SizedBox(height: 16),
                   if (_isSuperAdmin) ...[
                     if (_adminsError != null) ...[
                       ErrorBanner(message: _adminsError!),

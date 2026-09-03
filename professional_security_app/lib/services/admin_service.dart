@@ -448,6 +448,24 @@ class AdminService {
     }
   }
 
+  /// Registers a new employee with the fixed default password "123456"
+  /// (see db_files/phase7-admin-create-employee.sql) - used by the
+  /// Employees tab's "Register New Employee" button. Any admin/super_admin
+  /// may call this; the created account is always role = 'employee'.
+  Future<void> createEmployee({
+    required String employeeId,
+    required String fullName,
+  }) async {
+    try {
+      await _client.rpc('admin_create_employee', params: {
+        'p_employee_id': employeeId,
+        'p_full_name': fullName,
+      });
+    } on PostgrestException catch (e) {
+      throw AdminServiceException(e.message);
+    }
+  }
+
   /// One employee's profile by employee_id - used to open the same detail
   /// screen from an issue report card that searching-then-tapping would.
   /// Relies on the existing profiles_select_admin RLS policy.

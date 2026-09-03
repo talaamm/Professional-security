@@ -37,7 +37,10 @@ class MyApp extends StatelessWidget {
             textDirection: language.isRtl ? TextDirection.rtl : TextDirection.ltr,
             child: child!,
           ),
-          home: const AuthGate(),
+          // Not const: AuthGate must rebuild (along with every screen below
+          // it) when the language changes, or translated text stays frozen
+          // even though Directionality above still flips instantly.
+          home: AuthGate(),
         );
       },
     );

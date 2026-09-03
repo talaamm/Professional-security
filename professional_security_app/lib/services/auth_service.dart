@@ -25,28 +25,6 @@ class AuthService {
 
   Session? get currentSession => _client.auth.currentSession;
 
-  /// Registers a new employee account. The database trigger always creates
-  /// the profile with role = 'employee' regardless of what is sent here, so
-  /// there is no client-side path to self-register as admin/super_admin.
-  Future<void> register({
-    required String employeeId,
-    required String fullName,
-    required String password,
-  }) async {
-    try {
-      await _client.auth.signUp(
-        email: _emailForEmployeeId(employeeId),
-        password: password,
-        data: {
-          'employee_id': employeeId.trim(),
-          'full_name': fullName.trim(),
-        },
-      );
-    } on AuthException catch (e) {
-      throw AuthServiceException(_mapSignUpError(e));
-    }
-  }
-
   Future<void> login({
     required String employeeId,
     required String password,
@@ -104,19 +82,6 @@ class AuthService {
     } on AuthException catch (e) {
       throw AuthServiceException(e.message);
     }
-  }
-
-  String _mapSignUpError(AuthException e) {
-    final message = e.message.toLowerCase();
-    if (message.contains('already registered') ||
-        message.contains('already exists') ||
-        message.contains('duplicate')) {
-      return 'This Employee ID is already registered.';
-    }
-    if (message.contains('password')) {
-      return e.message;
-    }
-    return 'Registration failed. Please check your details and try again.';
   }
 
   String _mapSignInError(AuthException e) {

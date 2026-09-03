@@ -5,8 +5,8 @@ import '../config/theme.dart';
 import '../services/app_strings.dart';
 import '../services/auth_service.dart';
 import '../widgets/error_banner.dart';
+import '../widgets/language_picker.dart';
 import 'forgot_password_screen.dart';
-import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   final String? errorMessage;
@@ -87,15 +87,60 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.language, color: AppColors.textSecondary),
+                      tooltip: AppStrings.t('language_picker_title'),
+                      onPressed: () => pickLanguage(context: context),
+                    ),
+                  ],
+                ),
                 Center(
-                  child: Image.asset(
-                    'assets/images/logo.png',
-                    width: 180,
-                    semanticLabel: 'Professional Security',
+                  child: Container(
+                    width: 152,
+                    height: 152,
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.primary, width: 2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withValues(alpha: 0.35),
+                          blurRadius: 24,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                    child: ClipOval(
+                      child: Container(
+                        color: AppColors.background,
+                        child: Transform.scale(
+                          scale: 1.6,
+                          alignment: const Alignment(0, -0.3),
+                          child: Image.asset(
+                            'assets/images/logo.png',
+                            fit: BoxFit.cover,
+                            semanticLabel: 'Professional Security',
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 14),
+                const Text(
+                  'Professional Security',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 12),
                 Text(
                   AppStrings.t('login_subtitle'),
                   textAlign: TextAlign.center,
@@ -181,22 +226,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       : Text(AppStrings.t('login_button')),
                 ),
                 const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      AppStrings.t('login_no_account'),
-                      style: const TextStyle(color: AppColors.textSecondary),
-                    ),
-                    TextButton(
-                      onPressed: _isSubmitting
-                          ? null
-                          : () => Navigator.of(context).push(
-                                MaterialPageRoute(builder: (_) => const RegisterScreen()),
-                              ),
-                      child: Text(AppStrings.t('login_register_here')),
-                    ),
-                  ],
+                Center(
+                  child: Text(
+                    AppStrings.t('login_not_registered'),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: AppColors.textSecondary),
+                  ),
                 ),
               ],
             ),

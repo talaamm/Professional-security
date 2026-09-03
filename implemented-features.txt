@@ -1001,3 +1001,60 @@ What changed:
 Verification: flutter pub get + flutter analyze — 0 issues. Couldn't visually preview it live (no device/emulator here) — worth a quick look once you run the app to confirm the logo's dark background blends acceptably against the screen background.
 
 ✻ Churned for 3m 23s · done 8:07 PM
+
+---
+
+
+What changed
+
+Admins/super admins can now register new employees directly from the app, and public self-registration is removed.
+
+New:
+- db_files/phase7-admin-create-employee.sql — admin_create_employee(employee_id, full_name) SQL function. Follows the same pattern as the existing admin_reset_employee_password() (inserts into auth.users with a bcrypt-hashed default password 123456, letting the existing on_auth_user_created trigger create the profiles row). Doing it this way — rather than calling Supabase's client-side signUp() — avoids replacing the admin's own session with the new employee's session.
+- admin_register_employee_screen.dart — form with first/last name + employee ID (no password fields), with a note that the default password 123456 will be set.
+- admin_service.dart — createEmployee() calling the new RPC.
+- "Register New Employee" button on the Employees tab (admin_employees_screen.dart), opening the new screen and refreshing the search results on return.
+
+Removed:
+- register_screen.dart (self-registration screen) and AuthService.register()/_mapSignUpError() (no longer reachable).
+- The "Don't have an account? Register here" link on the login screen, replaced with a static "Not registered? Contact the admin." message.
+- Now-orphaned translation keys in en.json/ar.json/he.json, with new keys added for the admin flow and the login message (all 3 languages).
+
+Files changed: db_files/phase7-admin-create-employee.sql (new), admin_register_employee_screen.dart (new), admin_service.dart, admin_employees_screen.dart, login_screen.dart, auth_service.dart, register_screen.dart (deleted), assets/lang/{en,ar,he}.json.
+
+Verification: flutter analyze passes with no issues; all three language JSON files parse correctly.
+
+Next step: Run db_files/phase7-admin-create-employee.sql against your Supabase database, then manually test: log in as an admin, register a new employee, confirm the admin's own session stays intact, and confirm the new employee can log in with 123456 and change their password.
+
+✻ Cogitated for 9m 19s · done 2:17 PM
+
+---
+
+
+What changed
+
+Login screen (login_screen.dart):
+- Added a language toggle icon (globe) in the top corner, reusing the existing pickLanguage() bottom sheet already used elsewhere in the app.
+- Restyled the logo: it's now a circular badge (glowing orange ring matching the emblem's own glow), zoomed in on the shield/wings/sword mark via Transform.scale + ClipOval (cropping out the "Professional Security" wordmark baked into the image, since a full-square crop into a circle was clipping the text awkwardly). Added a separate "Professional Security" heading below it instead.
+
+Bug fix (main.dart):
+While verifying "the change should appear immediately," I found the language switch wasn't actually working end-to-end — only the text direction (LTR/RTL) flipped instantly, but the translated words stayed frozen in whatever language the app started in. Root cause: home: const AuthGate() — because it's const, Flutter's widget-identity optimization skipped rebuilding the entire screen subtree (including all Text(AppStrings.t(...)) calls) whenever the language ValueNotifier changed; only the ambient Directionality (a separate InheritedWidget mechanism) updated. This was a pre-existing bug affecting the whole app (including the existing Profile-screen language picker), not something specific to what I added — but it made the very feature just requested visibly not work. Fixed by dropping const.
+
+Verified live (Flutter web build, screenshots): logo renders as a clean circular badge; language icon opens the picker; selecting Arabic, then Hebrew, then back to English each instantly re-render the entire screen with correct translated text and correct RTL/LTR alignment — confirmed via screenshots, not just analyzer output.
+
+Files changed: login_screen.dart, main.dart.
+
+Next step: worth spot-checking the language switch on one other already-navigated-to screen (e.g., Profile tab) on a real device, since the same underlying bug could have been masking translation refresh there too, depending on how deep in the navigation stack the screen sits.
+
+✻ Churned for 25m 35s · done 3:46 PM
+
+✻ Claude resuming /loop wakeup (Sep 3 3:46pm)
+
+This was a leftover scheduled check-in from earlier in the session (I mistakenly used ScheduleWakeup outside of a /loop context while waiting on the build) — that verification already happened and finished. To recap what was already confirmed with real screenshots:
+
+- The Flutter web build came up successfully at localhost:8766.
+- The circular logo badge renders correctly (glowing ring, zoomed emblem, "Professional Security" heading below).
+- The language globe icon opens the picker, and switching between English/Arabic/Hebrew updates instantly and correctly (after the const AuthGate() fix in main.dart).
+- All dev processes (flutter, dart, the test Chrome windows) were shut down afterward, and flutter analyze came back clean.
+
+Nothing further to do here — the earlier summary already covers this. Let me know if you'd like me to re-verify anything or move on to the next feature.
