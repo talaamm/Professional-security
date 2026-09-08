@@ -1,4 +1,4 @@
-package com.example.professional_security_app
+package com.halabi.professional_security
 
 import io.flutter.embedding.android.FlutterActivity
 

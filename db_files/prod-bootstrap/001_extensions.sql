@@ -1,0 +1,28 @@
+-- ============================================================
+-- PROD BOOTSTRAP 001 — EXTENSIONS
+-- ============================================================
+--
+-- Consolidated, deduplicated bootstrap for a COMPLETELY EMPTY
+-- Supabase project. Built from db_files/db-schema-V2.sql plus every
+-- phaseN/fix-*.sql file, reconciled to the final working behavior
+-- currently running on the DEV project, with the DEV-approved
+-- efficiency improvements folded in.
+--
+-- Run these files in order (001 -> 012) via the Supabase SQL Editor
+-- against the PROD project ONLY, after manually verifying you are
+-- connected to the correct (empty) PROD project.
+--
+-- Contains NO data, NO DEV credentials, NO DEV Supabase URL/keys.
+-- ============================================================
+
+-- pgcrypto is used by admin_reset_employee_password(),
+-- admin_create_employee(), and super_admin_reset_admin_password()
+-- (crypt()/gen_salt('bf')) to bcrypt-hash passwords directly into
+-- auth.users, the same way Supabase Auth itself does.
+--
+-- On Supabase, an extension created without an explicit schema is
+-- installed into the "extensions" schema by platform default - this
+-- matches those three functions' "set search_path = public, extensions"
+-- exactly as authored in the source files, so no schema is specified
+-- here either.
+create extension if not exists "pgcrypto";
