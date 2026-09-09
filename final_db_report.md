@@ -157,3 +157,7 @@ READY FOR MANUAL PROD EXECUTION, with two things to plan for before/after runnin
 No files have been committed or pushed.
 
 ✻ Crunched for 9m 11s · done 8:54 PM
+
+
+Resume this session with:
+claude --resume 1c980923-bcc7-4813-9297-5699cdb929cb
