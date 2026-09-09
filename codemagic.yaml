@@ -1,0 +1,29 @@
+workflows:
+  android-workflow:
+    name: Android Build
+    instance_type: linux_x2
+    working_directory: professional_security_app
+    environment:
+      flutter: stable
+      groups:
+        - supabase_credentials # defines SUPABASE_URL, SUPABASE_ANON_KEY
+      cache:
+        cache_paths:
+          - $HOME/.pub-cache
+          - $CM_BUILD_DIR/professional_security_app/.dart_tool
+    scripts:
+      - name: Generate env.dart from secure variables
+        script: |
+          mkdir -p lib/config
+          cat > lib/config/env.dart <<EOF
+          class Env {
+            static const supabaseUrl = '$SUPABASE_URL';
+            static const supabaseAnonKey = '$SUPABASE_ANON_KEY';
+          }
+          EOF
+      - name: Get Flutter packages
+        script: flutter pub get
+      - name: Build APK
+        script: flutter build apk --release
+    artifacts:
+      - build/app/outputs/flutter-apk/app-release.apk
