@@ -6,7 +6,7 @@ workflows:
     environment:
       flutter: stable
       groups:
-        - supabase_credentials # defines SUPABASE_URL, SUPABASE_ANON_KEY
+        - Database credentials # defines SUPABASE_URL, SUPABASE_ANON_KEY
     cache:
       cache_paths:
         - $HOME/.pub-cache
