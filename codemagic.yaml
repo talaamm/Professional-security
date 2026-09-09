@@ -7,10 +7,10 @@ workflows:
       flutter: stable
       groups:
         - supabase_credentials # defines SUPABASE_URL, SUPABASE_ANON_KEY
-      cache:
-        cache_paths:
-          - $HOME/.pub-cache
-          - $CM_BUILD_DIR/professional_security_app/.dart_tool
+    cache:
+      cache_paths:
+        - $HOME/.pub-cache
+        - $CM_BUILD_DIR/professional_security_app/.dart_tool
     scripts:
       - name: Generate env.dart from secure variables
         script: |
