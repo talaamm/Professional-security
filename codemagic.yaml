@@ -23,10 +23,10 @@ workflows:
           EOF
       - name: Get Flutter packages
         script: flutter pub get
-      - name: Build APK
-        script: flutter build apk --release
+      - name: Build AAB
+        script: flutter build appbundle --release
     artifacts:
-      - build/app/outputs/flutter-apk/app-release.apk
+      - build/app/outputs/flutter-apk/app-release.aab
 
   ios-workflow:
     name: iOS Build
