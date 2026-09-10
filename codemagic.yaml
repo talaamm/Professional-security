@@ -33,7 +33,7 @@ workflows:
     instance_type: mac_mini_m2
     working_directory: professional_security_app
     integrations:
-      app_store_connect: codemagic # name of the App Store Connect integration configured in Codemagic > Team settings > Integrations
+      app_store_connect: spikers # name of the App Store Connect integration configured in Codemagic > Team settings > Integrations
     environment:
       flutter: stable
       xcode: latest
