@@ -42,7 +42,7 @@ workflows:
         - Database credentials # defines SUPABASE_URL, SUPABASE_ANON_KEY
       ios_signing:
         distribution_type: app_store
-        bundle_identifier: com.halabi.professional_security
+        bundle_identifier: com.halabi.professionalsecurity
     cache:
       cache_paths:
         - $HOME/.pub-cache
