@@ -27,3 +27,55 @@ workflows:
         script: flutter build apk --release
     artifacts:
       - build/app/outputs/flutter-apk/app-release.apk
+
+  ios-workflow:
+    name: iOS Build
+    instance_type: mac_mini_m2
+    working_directory: professional_security_app
+    integrations:
+      app_store_connect: codemagic # name of the App Store Connect integration configured in Codemagic > Team settings > Integrations
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      groups:
+        - Database credentials # defines SUPABASE_URL, SUPABASE_ANON_KEY
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.halabi.professional_security
+    cache:
+      cache_paths:
+        - $HOME/.pub-cache
+        - $HOME/Library/Caches/CocoaPods
+        - $CM_BUILD_DIR/professional_security_app/.dart_tool
+    scripts:
+      - name: Generate env.dart from secure variables
+        script: |
+          mkdir -p lib/config
+          cat > lib/config/env.dart <<EOF
+          class Env {
+            static const supabaseUrl = '$SUPABASE_URL';
+            static const supabaseAnonKey = '$SUPABASE_ANON_KEY';
+          }
+          EOF
+      - name: Get Flutter packages
+        script: flutter pub get
+      - name: Install CocoaPods dependencies
+        script: |
+          find . -name "Podfile" -maxdepth 2 -execdir pod install \;
+      - name: Set up code signing settings on Xcode project
+        script: xcode-project use-profiles
+      - name: Build IPA
+        script: |
+          flutter build ipa --release \
+            --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      email:
+        recipients:
+          - aipoweredads@gmail.com
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
