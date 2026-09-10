@@ -26,7 +26,7 @@ workflows:
       - name: Build AAB
         script: flutter build appbundle --release
     artifacts:
-      - build/app/outputs/flutter-apk/app-release.aab
+      - build/app/outputs/bundle/release/app-release.aab
 
   ios-workflow:
     name: iOS Build
