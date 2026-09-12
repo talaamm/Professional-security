@@ -123,6 +123,9 @@
   "profile_language": "שפה",
   "profile_change_password": "שינוי סיסמה",
   "profile_change_password_subtitle": "עדכן את סיסמת החשבון שלך",
+  "profile_contact_developer": "צור קשר עם המפתח",
+  "profile_contact_developer_subtitle": "דווח על תקלה, שתף משוב או הצע תכונה חדשה",
+  "profile_contact_developer_error": "לא ניתן לפתוח את הטופס. נסה שוב.",
 
   "admin_profile_active_employees": "עובדים פעילים",
   "admin_profile_role_super_admin": "מנהל-על",

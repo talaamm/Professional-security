@@ -1112,3 +1112,23 @@ For prod-bootstrap: since you haven't run anything yet, the safe thing to run ag
 Next step: run fix-admin-cannot-end-admin-sessions.sql against both dev and prod, then verify: as an admin, try ending another admin's session (should error) and an employee's (should still work); as a super_admin, confirm you can end anyone's.
 
 ✻ Brewed for 1m 19s · done 3:18 PM
+
+---
+What changed
+
+Added a "Contact the Developer" link in the Profile tab (both employee and admin/super-admin), opening a Google Form scoped to the user's current app language — separate from the existing "report an issue" flow, which only reaches the admins.
+
+How it works: links.json (moved from repo root into professional_security_app/assets/links.json, bundled as an asset) maps en-form/ar-form/he-form to your three Google Form URLs. A new helper, lib/widgets/developer_contact_helper.dart, reads that file and opens ${AppStrings.current.value.code}-form — i.e. whatever language the user has picked in the Profile tab's language picker — via url_launcher, with a translated error snackbar if it fails to open.
+
+Files changed:
+- professional_security_app/pubspec.yaml — added url_launcher dependency + assets/links.json asset entry
+- professional_security_app/assets/links.json — new (copied from your root links.json, which I removed since it's now unused there)
+- professional_security_app/lib/widgets/developer_contact_helper.dart — new helper
+- professional_security_app/lib/screens/employee_profile_screen.dart / admin_profile_screen.dart — added a third _ProfileActionTile ("Contact the Developer") reusing the existing tile pattern already used for Language/Change Password
+- assets/lang/{en,ar,he}.json — added profile_contact_developer, profile_contact_developer_subtitle, profile_contact_developer_error
+
+Verification: ran flutter pub get (resolved url_launcher cleanly) and flutter analyze on the whole project — no issues.
+
+Next step: run the app and tap the new tile in each of the three languages to confirm it opens the matching form.
+
+✻ Sautéed for 7m 12s · done 4:55 PM

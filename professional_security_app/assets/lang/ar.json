@@ -123,6 +123,9 @@
   "profile_language": "اللغة",
   "profile_change_password": "تغيير كلمة المرور",
   "profile_change_password_subtitle": "تحديث كلمة مرور حسابك",
+  "profile_contact_developer": "تواصل مع المطوّر",
+  "profile_contact_developer_subtitle": "أبلغ عن مشكلة أو شارك ملاحظاتك أو اقترح ميزة",
+  "profile_contact_developer_error": "تعذر فتح النموذج. يرجى المحاولة مرة أخرى.",
 
   "admin_profile_active_employees": "الموظفون النشطون",
   "admin_profile_role_super_admin": "مسؤول عام",

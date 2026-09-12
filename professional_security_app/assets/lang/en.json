@@ -122,6 +122,9 @@
   "profile_language": "Language",
   "profile_change_password": "Change Password",
   "profile_change_password_subtitle": "Update your account password",
+  "profile_contact_developer": "Contact the Developer",
+  "profile_contact_developer_subtitle": "Report an issue, share feedback, or suggest a feature",
+  "profile_contact_developer_error": "Could not open the form. Please try again.",
 
   "admin_profile_active_employees": "ACTIVE EMPLOYEES",
   "admin_profile_role_super_admin": "Super Administrator",

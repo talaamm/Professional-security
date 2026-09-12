@@ -4,6 +4,7 @@ import '../config/theme.dart';
 import '../models/profile.dart';
 import '../services/app_strings.dart';
 import '../services/work_session_service.dart';
+import '../widgets/developer_contact_helper.dart';
 import '../widgets/language_picker.dart';
 import '../widgets/logout_helper.dart';
 import 'change_password_screen.dart';
@@ -124,6 +125,13 @@ class _EmployeeProfileScreenState extends State<EmployeeProfileScreen> {
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
               ),
+            ),
+            const SizedBox(height: 12),
+            _ProfileActionTile(
+              icon: Icons.feedback_outlined,
+              title: AppStrings.t('profile_contact_developer'),
+              subtitle: AppStrings.t('profile_contact_developer_subtitle'),
+              onTap: () => openDeveloperContactForm(context),
             ),
           ],
         ),
