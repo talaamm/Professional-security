@@ -506,7 +506,11 @@ grant execute on function public.admin_verify_session(uuid, text, text, text) to
 -- admin_end_work_session(...) - force-ends another employee's active
 -- session from the dashboard. Blocks targeting the caller's own
 -- session (must use Finish Work for that, which keeps the
--- always-verified admin-session guarantee intact).
+-- always-verified admin-session guarantee intact). An admin (not
+-- super_admin) is further blocked from targeting an admin/super_admin
+-- session - admins can see everyone currently working, but only have
+-- authority to end an employee's session. A super_admin can end
+-- anyone's.
 -- ------------------------------------------------------------
 
 create or replace function public.admin_end_work_session(
@@ -520,10 +524,12 @@ set search_path = public
 as $$
 declare
     v_admin_employee_id text;
+    v_caller_role public.user_role;
+    v_target_role public.user_role;
     v_before public.work_sessions;
     v_session public.work_sessions;
 begin
-    select employee_id into v_admin_employee_id
+    select employee_id, role into v_admin_employee_id, v_caller_role
     from public.profiles
     where auth_user_id = auth.uid()
       and status = 'active'
@@ -547,6 +553,16 @@ begin
 
     if v_before.employee_id = v_admin_employee_id then
         raise exception 'Use Finish Work to end your own session.';
+    end if;
+
+    if v_caller_role = 'admin' then
+        select role into v_target_role
+        from public.profiles
+        where employee_id = v_before.employee_id;
+
+        if v_target_role <> 'employee' then
+            raise exception 'You cannot end another administrator''s session.';
+        end if;
     end if;
 
     update public.work_sessions

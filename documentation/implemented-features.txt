@@ -1097,3 +1097,18 @@ Next step: run the two new dev-db fix files and the corresponding prod-bootstrap
 ✻ Worked for 5m 1s · done 2:33 PM
 
 ※ recap: Fixed three bugs in the security app: the logout session-end cast error, the issue-report textbox border, and the password reset message limit (200→50) across dev-db and prod-bootstrap. Next: run the new dev-db fix files and prod-bootstrap changes against Supabase, then retest logout. (disable recaps in /config)
+
+
+Summary
+
+Corrected rule now implemented, matching your latest description:
+- admin: still sees everyone currently working (employees + other admins/super admins) — visibility was never actually the problem, so admin_active_sessions() is untouched. But it can now only end an employee's session; trying to end an admin's or super admin's session is rejected server-side with 'You cannot end another administrator's session.'
+- super_admin: unrestricted — can end anyone's session, no role check applied.
+
+For dev-db: db_files/dev-db/fix-admin-cannot-end-admin-sessions.sql has been rewritten (same filename, not yet run per what you said) — it now only recreates admin_end_work_session() with the caller-role check (v_caller_role), nothing else. Run that file as-is against dev.
+
+For prod-bootstrap: since you haven't run anything yet, the safe thing to run against prod is just the corrected admin_end_work_session() block — it's a create or replace function, so it's idempotent and won't touch any data. You can copy/run this exact same file (fix-admin-cannot-end-admin-sessions.sql) against prod too — its content is now identical to what's needed there, and I've mirrored the same logic into db_files/prod-bootstrap/008_session_functions.sql as the source of truth.
+
+Next step: run fix-admin-cannot-end-admin-sessions.sql against both dev and prod, then verify: as an admin, try ending another admin's session (should error) and an employee's (should still work); as a super_admin, confirm you can end anyone's.
+
+✻ Brewed for 1m 19s · done 3:18 PM
