@@ -27,10 +27,10 @@
   "nav_my_work_sessions": "جلسات عملي",
 
   "login_subtitle": "أدخل بيانات الدخول للوصول إلى لوحة عملك.",
-  "login_employee_id_label": "رقم الموظف",
+  "login_employee_id_label": "رقم الهوية",
   "login_employee_id_hint": "مثال: 034829551",
-  "login_employee_id_required": "رقم الموظف مطلوب",
-  "login_employee_id_invalid": "يجب أن يتكون رقم الموظف من 9 أرقام بالضبط",
+  "login_employee_id_required": "رقم الهوية مطلوب",
+  "login_employee_id_invalid": "يجب أن يتكون رقم الهوية من 9 أرقام بالضبط",
   "login_password_label": "كلمة المرور",
   "login_forgot_password": "نسيت كلمة المرور؟",
   "login_button": "تسجيل الدخول",
@@ -39,15 +39,15 @@
   "register_first_name": "الاسم الأول",
   "register_last_name": "اسم العائلة",
   "register_required": "مطلوب",
-  "register_employee_id_label": "رقم الموظف",
+  "register_employee_id_label": "رقم الهوية",
   "register_employee_id_hint": "مثال: 034829551",
   "register_confirm_password_required": "يرجى تأكيد كلمة المرور",
   "register_success_snackbar": "تم إنشاء الحساب. يرجى تسجيل الدخول.",
 
   "forgot_password_title": "استعادة الحساب",
   "forgot_password_heading": "إعادة تعيين كلمة المرور",
-  "forgot_password_subtitle": "أدخل رقم موظفك وأبلغ أحد المسؤولين. سيقوم بإعادة تعيين كلمة المرور وإعلامك عندما تكون جاهزة.",
-  "forgot_password_employee_id_section": "رقم الموظف",
+  "forgot_password_subtitle": "أدخل رقم هويتك وأبلغ أحد المسؤولين. سيقوم بإعادة تعيين كلمة المرور وإعلامك عندما تكون جاهزة.",
+  "forgot_password_employee_id_section": "رقم الهوية",
   "forgot_password_message_section": "رسالة إلى المسؤول (اختياري)",
   "forgot_password_message_hint": "مثال: نسيت كلمة المرور، الرجاء إعادة تعيينها",
   "forgot_password_submit": "إرسال الطلب",
@@ -81,7 +81,7 @@
   "home_session_ended_unverified": "تم إنهاء الجلسة — تم وضع علامة غير موثقة، بانتظار مراجعة المسؤول.",
   "home_report_issue_title": "هل لديك مشكلة؟",
   "home_report_issue_desc": "صف المشكلة باختصار. سيتابع معك أحد المسؤولين.",
-  "home_report_issue_hint": "مثال: شارتي لا تعمل",
+  "home_report_issue_hint": "مثال: لا استطيع تحديد موقعي / نسيت انهاء جلسة عمل اليوم",
   "home_report_issue_sent": "تم الإرسال إلى المسؤولين.",
 
   "start_work_title": "بدء العمل",
@@ -160,7 +160,7 @@
 
   "admin_employees_title": "الموظفون",
   "admin_employees_register_button": "تسجيل موظف جديد",
-  "admin_employees_search_hint": "ابحث بالاسم أو رقم الموظف",
+  "admin_employees_search_hint": "ابحث بالاسم أو رقم الهوية",
   "admin_employees_search_prompt": "ابحث عن موظف لعرض تفاصيله.",
   "admin_employees_no_matches": "لا يوجد موظفون مطابقون.",
   "admin_employees_password_reset_section": "طلبات إعادة تعيين كلمة المرور",
@@ -171,7 +171,7 @@
   "admin_employees_employee_not_found": "الموظف غير موجود.",
   "admin_employees_could_not_load_issues": "تعذر تحميل البلاغات.",
   "admin_employees_could_not_load_resets": "تعذر تحميل طلبات إعادة تعيين كلمة المرور.",
-  "admin_employees_id_prefix": "رقم الموظف: {id}",
+  "admin_employees_id_prefix": "رقم الهوية: {id}",
   "admin_employees_administrators_section": "المسؤولون",
   "admin_employees_no_admins": "لا توجد حسابات مسؤولين.",
   "admin_employees_could_not_load_admins": "تعذر تحميل المسؤولين.",
@@ -302,6 +302,6 @@
   "session_verified_by": "وثّقها: {name}",
 
   "months_full": ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"],
-  "months_short": ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"],
-  "weekdays_short": ["إثن", "ثلا", "أرب", "خمي", "جمعة", "سبت", "أحد"]
+  "months_short": ["شهر 01", "شهر 02", "شهر 03", "شهر 04", "شهر 05", "شهر 06", "شهر 07", "شهر 08", "شهر 09", "شهر 10", "شهر 11", "شهر 12"],
+  "weekdays_short": ["اثنين", "ثلاثاء", "اربعاء", "خميس", "جمعة", "سبت", "أحد"]
 }

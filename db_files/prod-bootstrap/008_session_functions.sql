@@ -305,7 +305,7 @@ begin
     update public.work_sessions
     set
         ended_at = now(),
-        end_verification = case when v_is_admin then 'verified' else 'manual' end,
+        end_verification = (case when v_is_admin then 'verified' else 'manual' end)::public.verification_method,
         ended_by = v_employee_id,
         verified_by = case when v_is_admin then v_employee_id else verified_by end,
         notes = 'Session ended automatically: logged out while working.',

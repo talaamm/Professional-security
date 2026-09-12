@@ -47,7 +47,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 maxLength: 50,
                 maxLines: 2,
                 style: const TextStyle(color: AppColors.textPrimary),
-                decoration: InputDecoration(hintText: AppStrings.t('home_report_issue_hint')),
+                decoration: InputDecoration(
+                  hintText: AppStrings.t('home_report_issue_hint'),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                  ),
+                ),
                 onChanged: (_) => setDialogState(() {}),
               ),
             ],

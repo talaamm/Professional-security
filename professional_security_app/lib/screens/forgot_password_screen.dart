@@ -151,7 +151,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _messageController,
-                  maxLength: 200,
+                  maxLength: 50,
                   maxLines: 3,
                   style: const TextStyle(color: AppColors.textPrimary),
                   decoration: InputDecoration(

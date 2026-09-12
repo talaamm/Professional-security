@@ -1070,3 +1070,30 @@ Files changed: professional_security_app/lib/widgets/dashboard_section.dart (1 l
 Verification: flutter analyze — no issues.
 
 ✻ Crunched for 1m 31s · done 4:04 PM
+
+---
+
+All three fixes are in place. Summary:
+
+1. Logout end-session error (column "end_verification" is of type verification_method but expression is of type text)
+Root cause: end_work_session_for_logout()'s CASE WHEN v_is_admin THEN 'verified' ELSE 'manual' END has two untyped string literals, so Postgres resolves the whole CASE to text (not left as an unresolved literal), and text has no implicit cast to the verification_method enum in a raw UPDATE.
+- db_files/prod-bootstrap/008_session_functions.sql — edited in place, added explicit ::public.verification_method cast.
+- db_files/dev-db/fix-logout-end-verification-cast.sql — new fix migration (matches this project's existing fix-file convention) with the same cast added.
+
+2. "Tell the admins" textbox border
+Added an orange enabledBorder to that one TextField in home_screen.dart so it's visibly outlined by default, matching the existing focused-state orange (AppColors.primary). Scoped to just that dialog, not the global theme, so no other text fields in the app changed.
+
+3. Password reset message: 200 → 50 chars
+Updated the Flutter field (maxLength), the DB check constraint, and the server-side validation/error message in both:
+- db_files/prod-bootstrap/003_tables.sql + 012_password_reset_functions.sql (edited in place)
+- db_files/dev-db/fix-password-reset-message-length.sql (new fix migration)
+
+Files changed: db_files/prod-bootstrap/{003_tables.sql,008_session_functions.sql,012_password_reset_functions.sql}, new db_files/dev-db/fix-logout-end-verification-cast.sql and fix-password-reset-message-length.sql, professional_security_app/lib/screens/{home_screen.dart,forgot_password_screen.dart}.
+
+Verification: Reviewed the SQL logic by hand (Postgres enum/type-resolution rules) and confirmed no other CASE-into-enum or 200-char references remain. I can't run these against your actual Supabase dev/prod projects — you'll need to run the two new fix-*.sql files against dev, and the edited 003/008/012 files' statements against prod (they're all idempotent create or replace/drop constraint if exists). The Flutter analyzer errors shown are pre-existing environment issues (Flutter SDK not resolved), unrelated to these edits.
+
+Next step: run the two new dev-db fix files and the corresponding prod-bootstrap statements against Supabase, then re-test the logout flow.
+
+✻ Worked for 5m 1s · done 2:33 PM
+
+※ recap: Fixed three bugs in the security app: the logout session-end cast error, the issue-report textbox border, and the password reset message limit (200→50) across dev-db and prod-bootstrap. Next: run the new dev-db fix files and prod-bootstrap changes against Supabase, then retest logout. (disable recaps in /config)

@@ -22,8 +22,8 @@
 --                        repeated here) - message length left at the
 --                        original 50 chars, unchanged per instructions
 --   password_reset_requests - phase7-password-reset.sql - message
---                        length left at the original 200 chars,
---                        unchanged per instructions
+--                        length capped at 50 chars, same limit as
+--                        issue_reports.message
 -- ============================================================
 
 
@@ -420,9 +420,9 @@ create table public.issue_reports (
 -- PASSWORD RESET REQUESTS
 -- ============================================================
 --
--- message length intentionally left at 200 chars, unchanged - already
--- appropriately constrained, per instructions. Reuses public.issue_status
--- rather than a second status enum (matches phase7-password-reset.sql).
+-- message length capped at 50 chars, same limit as issue_reports.message.
+-- Reuses public.issue_status rather than a second status enum (matches
+-- phase7-password-reset.sql).
 -- ============================================================
 
 create table public.password_reset_requests (
@@ -446,7 +446,7 @@ create table public.password_reset_requests (
         on delete restrict,
 
     constraint password_reset_requests_message_length
-        check (message is null or length(message) <= 200),
+        check (message is null or length(message) <= 50),
 
     constraint password_reset_requests_resolved_dates
         check (

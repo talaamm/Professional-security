@@ -40,8 +40,8 @@ begin
     end if;
 
     v_message := nullif(trim(p_message), '');
-    if v_message is not null and length(v_message) > 200 then
-        raise exception 'Please keep your message to 200 characters or fewer.';
+    if v_message is not null and length(v_message) > 50 then
+        raise exception 'Please keep your message to 50 characters or fewer.';
     end if;
 
     insert into public.password_reset_requests (employee_id, message)
