@@ -1167,3 +1167,34 @@ API keys needed: none. No account creation, no billing setup required for this f
 Next step: run the app on an emulator/device (or have you test it) to confirm the map renders and search works on your network — that's the one thing I couldn't verify here.
 
 ✻ Sautéed for 11m 56s · done 11:21 AM
+
+---
+
+
+Summary
+
+What changed: The Employees tab now has an "Employees of This Month" expandable section, styled and positioned like the existing Administrators/Password Reset/Reported Issues sections, placed right after Reported Issues.
+
+- Lazy-loaded: nothing is queried until the admin expands it (ExpansionTile.onExpansionChanged triggers the first fetch only if it hasn't loaded yet).
+- Shows employees who completed ≥1 work session this month only, alphabetical by name, 5 at a time, with a Load More button that fetches the next 5 (hidden once a page returns fewer than 5).
+- A Download List button appears at the top of the list once expanded and loaded — it fetches every qualifying employee (name, ID, session count this month) and generates a PDF via the existing ReportService/Printing.sharePdf share-sheet mechanism (same pattern already used for the monthly work-hours report — Arabic/Hebrew name shaping included).
+- Pull-to-refresh and returning from an employee's detail screen also refresh this section, but only if it was already expanded (never triggers a fresh query on its own).
+
+Backend: added one new SECURITY DEFINER RPC, admin_monthly_active_employees(p_limit, p_offset), following the exact pattern of the existing admin_active_sessions/admin_unverified_sessions functions (explicit is_admin() check, stable, current month computed server-side from now() — never trusts a client-supplied date). p_limit = null returns everyone (used by Download List); p_limit/p_offset page the on-screen list — one function serves both, no duplicate endpoint.
+
+⚠️ Action needed from you: I can't reach your Supabase database directly (no service-role key in this repo). Please run this new file against your Supabase SQL editor before testing the feature: db_files/dev-db/phase8-monthly-active-employees.sql. I also mirrored the same function into db_files/prod-bootstrap/010_admin_functions.sql for future fresh-instance bootstraps — no need to run that one separately right now.
+
+Files changed:
+- db_files/dev-db/phase8-monthly-active-employees.sql (new) — the RPC
+- db_files/prod-bootstrap/010_admin_functions.sql — mirrored the same RPC
+- professional_security_app/lib/models/monthly_active_employee.dart (new)
+- professional_security_app/lib/services/admin_service.dart — added fetchMonthlyActiveEmployees()
+- professional_security_app/lib/services/report_service.dart — added generateMonthlyActiveEmployeesReport()
+- professional_security_app/lib/screens/admin_employees_screen.dart — new section, state, and _MonthlyEmployeeTile
+- assets/lang/{en,ar,he}.json — new strings
+
+Verification: flutter analyze — no issues. flutter test — same pre-existing unrelated template-test failure as before (not caused by this change). Couldn't exercise the RPC live since it isn't deployed to your database yet — please run the SQL file above, then test the flow.
+
+Next step: run phase8-monthly-active-employees.sql in Supabase, then try it in the app (expand the section, Load More, Download List) to confirm real data comes back correctly.
+
+✻ Worked for 9m 50s · done 12:10 PM

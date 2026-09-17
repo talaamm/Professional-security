@@ -6,7 +6,8 @@
 -- phase7-admin-create-employee.sql, phase7-password-reset.sql
 -- (admin_reset_employee_password only - the rest of that file is in
 -- 012_password_reset_functions.sql), phase7-role-management.sql,
--- phase7-admin-self-sessions-and-super-admin.sql (super_admin_*).
+-- phase7-admin-self-sessions-and-super-admin.sql (super_admin_*),
+-- phase8-monthly-active-employees.sql (admin_monthly_active_employees).
 -- None of these were redefined again in a later file.
 -- ============================================================
 
@@ -463,6 +464,59 @@ end;
 $$;
 
 grant execute on function public.super_admin_reset_admin_password(text) to authenticated;
+
+
+-- ------------------------------------------------------------
+-- admin_monthly_active_employees(...) - employees (role = 'employee')
+-- with >=1 completed work session in the current calendar month,
+-- alphabetical by name, with each one's session count that month.
+-- p_limit left null returns every matching employee (used by the
+-- Employees tab's "Download List" export); p_limit/p_offset together
+-- page the on-screen list 5 at a time. "This month" is always the
+-- server's current month - never trusts a client-supplied date range.
+-- ------------------------------------------------------------
+
+create or replace function public.admin_monthly_active_employees(
+    p_limit integer default null,
+    p_offset integer default 0
+)
+returns table (
+    employee_id text,
+    full_name text,
+    session_count bigint
+)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+    v_month_start timestamptz := date_trunc('month', now());
+    v_month_end timestamptz := v_month_start + interval '1 month';
+begin
+    if not public.is_admin() then
+        raise exception 'Only an administrator can view this.';
+    end if;
+
+    return query
+    select
+        p.employee_id,
+        p.full_name,
+        count(ws.id) as session_count
+    from public.work_sessions ws
+    join public.profiles p on p.employee_id = ws.employee_id
+    where p.role = 'employee'
+      and ws.ended_at is not null
+      and ws.started_at >= v_month_start
+      and ws.started_at < v_month_end
+    group by p.employee_id, p.full_name
+    order by p.full_name
+    limit p_limit offset p_offset;
+end;
+$$;
+
+grant execute on function public.admin_monthly_active_employees(integer, integer)
+    to authenticated;
 
 
 -- ------------------------------------------------------------
