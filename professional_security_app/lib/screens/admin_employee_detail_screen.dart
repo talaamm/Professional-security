@@ -7,6 +7,7 @@ import '../services/admin_service.dart';
 import '../services/app_strings.dart';
 import '../services/report_service.dart';
 import '../widgets/error_banner.dart';
+import '../widgets/month_selector.dart';
 import 'admin_session_edit_screen.dart';
 
 /// Admin's view of one employee: their details, an activate/deactivate
@@ -74,12 +75,7 @@ class _AdminEmployeeDetailScreenState extends State<AdminEmployeeDetailScreen> {
   bool _isLoadingSessions = false;
   bool _hasListedSessions = false;
 
-  static DateTime _clampToMonthRange(DateTime month) {
-    final maxMonth = DateTime(DateTime.now().year, DateTime.now().month);
-    if (month.isBefore(_minMonth)) return _minMonth;
-    if (month.isAfter(maxMonth)) return maxMonth;
-    return month;
-  }
+  static DateTime _clampToMonthRange(DateTime month) => clampToMonthRange(month, _minMonth);
 
   void _changeSessionsMonth(int delta) {
     final next = _clampToMonthRange(
@@ -535,7 +531,7 @@ class _AdminEmployeeDetailScreenState extends State<AdminEmployeeDetailScreen> {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    _MonthSelector(
+                    MonthSelector(
                       month: _reportMonth,
                       minMonth: _minMonth,
                       onChange: _isGeneratingReport ? null : _changeReportMonth,
@@ -577,7 +573,7 @@ class _AdminEmployeeDetailScreenState extends State<AdminEmployeeDetailScreen> {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    _MonthSelector(
+                    MonthSelector(
                       month: _sessionsMonth,
                       minMonth: _minMonth,
                       onChange: _isLoadingSessions ? null : _changeSessionsMonth,
@@ -730,47 +726,6 @@ class _SessionRow extends StatelessWidget {
         ],
       ),
       ),
-    );
-  }
-}
-
-class _MonthSelector extends StatelessWidget {
-  final DateTime month;
-  final DateTime minMonth;
-  final ValueChanged<int>? onChange;
-
-  const _MonthSelector({required this.month, required this.minMonth, this.onChange});
-
-  bool get _isMinMonth => month.year == minMonth.year && month.month == minMonth.month;
-
-  bool get _isMaxMonth {
-    final now = DateTime.now();
-    return month.year == now.year && month.month == now.month;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final monthNames = AppStrings.list('months_full');
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        IconButton(
-          icon: const Icon(Icons.chevron_left, color: AppColors.textPrimary),
-          onPressed: (onChange == null || _isMinMonth) ? null : () => onChange!(-1),
-        ),
-        Text(
-          '${monthNames[month.month - 1]} ${month.year}',
-          style: const TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        IconButton(
-          icon: const Icon(Icons.chevron_right, color: AppColors.textPrimary),
-          onPressed: (onChange == null || _isMaxMonth) ? null : () => onChange!(1),
-        ),
-      ],
     );
   }
 }

@@ -1198,3 +1198,30 @@ Verification: flutter analyze — no issues. flutter test — same pre-existing 
 Next step: run phase8-monthly-active-employees.sql in Supabase, then try it in the app (expand the section, Load More, Download List) to confirm real data comes back correctly.
 
 ✻ Worked for 9m 50s · done 12:10 PM
+
+---
+
+Summary
+
+What changed: The Edit Workplace screen now has a Sessions Report section (only shown when editing an existing workplace — a brand-new one has no sessions yet) with a month picker (same prev/next control as the employee detail screen, clamped to Aug 2026–current month) and a Download All Sessions button. Pressing it generates a PDF of every completed work session at that workplace for the chosen month — one row per session with employee name, employee ID, date, start/end time, and duration — covering every role (employee, admin, super admin), not just employees, per your spec.
+
+Backend: added admin_workplace_sessions_for_month(p_workplace_id, p_month_start, p_month_end_exclusive), an is_admin()-gated SECURITY DEFINER RPC (same pattern as admin_active_sessions/admin_unverified_sessions). It joins profiles inside the function rather than via a PostgREST embed, because work_sessions has two FKs into profiles (employee_id and verified_by), which makes a plain embed ambiguous — this mirrors how the existing RPCs already handle that.
+
+⚠️ Action needed from you: same as last time — I can't reach your Supabase database directly. Please run db_files/dev-db/phase8-workplace-sessions-report.sql in the Supabase SQL editor before testing. I mirrored the same function into db_files/prod-bootstrap/009_workplace_functions.sql for future fresh-instance bootstraps.
+
+Also refactored (small, in scope): the month-picker widget (_MonthSelector) and its clamp helper were private to admin_employee_detail_screen.dart, so they couldn't be reused for the workplace screen. Extracted both into lib/widgets/month_selector.dart (MonthSelector + clampToMonthRange) and updated admin_employee_detail_screen.dart to use the shared version instead of its own copy — avoids a duplicate implementation per this project's conventions. (Left history_screen.dart's own separate, differently-shaped _MonthSelector alone — out of scope here.) Also fixed a stale doc comment on updateWorkplace left over from last session's GPS-flow change.
+
+Files changed:
+- db_files/dev-db/phase8-workplace-sessions-report.sql (new) — the RPC
+- db_files/prod-bootstrap/009_workplace_functions.sql — mirrored RPC
+- professional_security_app/lib/models/workplace_monthly_session.dart (new)
+- professional_security_app/lib/widgets/month_selector.dart (new) — extracted shared widget
+- professional_security_app/lib/services/admin_service.dart — fetchWorkplaceSessionsForMonth()
+- professional_security_app/lib/services/report_service.dart — generateWorkplaceMonthlySessionsReport()
+- professional_security_app/lib/screens/workplace_form_screen.dart — new report card/state
+- professional_security_app/lib/screens/admin_employee_detail_screen.dart — reuses shared MonthSelector
+- assets/lang/{en,ar,he}.json — new strings
+
+Verification: flutter analyze — no issues. flutter test — same pre-existing unrelated template-test failure as before. Couldn't exercise the RPC live (not deployed yet) — please run the SQL file, then test: open a workplace with sessions this year, pick a month, tap Download All Sessions.
+
+✻ Crunched for 13m 45s · done 12:58 PM

@@ -5,10 +5,16 @@ import '../models/profile.dart';
 import '../models/workplace.dart';
 import '../services/admin_service.dart';
 import '../services/app_strings.dart';
+import '../services/report_service.dart';
 import '../widgets/error_banner.dart';
+import '../widgets/month_selector.dart';
 import 'location_picker_screen.dart';
 
 const int _maxRadiusMeters = 10000; // matches workplaces_radius_reasonable
+
+// The app's data starts in August 2026 - no earlier month has any
+// sessions to report on (same constant as admin_employee_detail_screen.dart).
+final DateTime _minReportMonth = DateTime(2026, 8);
 
 /// Add a new workplace or edit an existing one. The workplace's
 /// coordinates always come from the admin searching/tapping a spot on the
@@ -27,6 +33,7 @@ class WorkplaceFormScreen extends StatefulWidget {
 
 class _WorkplaceFormScreenState extends State<WorkplaceFormScreen> {
   final _adminService = AdminService();
+  final _reportService = ReportService();
   final _nameController = TextEditingController();
 
   late final bool _isEditing = widget.existing != null;
@@ -41,6 +48,12 @@ class _WorkplaceFormScreenState extends State<WorkplaceFormScreen> {
   String? _error;
   bool _isUpdatingStatus = false;
   late bool _isActive = widget.existing?.isActive ?? true;
+
+  late DateTime _sessionsMonth = clampToMonthRange(
+    DateTime(DateTime.now().year, DateTime.now().month),
+    _minReportMonth,
+  );
+  bool _isGeneratingSessionsReport = false;
 
   @override
   void initState() {
@@ -196,6 +209,46 @@ class _WorkplaceFormScreenState extends State<WorkplaceFormScreen> {
     }
   }
 
+  void _changeSessionsMonth(int delta) {
+    final next = clampToMonthRange(
+      DateTime(_sessionsMonth.year, _sessionsMonth.month + delta),
+      _minReportMonth,
+    );
+    if (next == _sessionsMonth) return;
+    setState(() => _sessionsMonth = next);
+  }
+
+  Future<void> _downloadSessions() async {
+    setState(() {
+      _isGeneratingSessionsReport = true;
+      _error = null;
+    });
+
+    try {
+      final sessions = await _adminService.fetchWorkplaceSessionsForMonth(
+        workplaceId: widget.existing!.id,
+        monthStart: _sessionsMonth,
+        monthEndExclusive: DateTime(_sessionsMonth.year, _sessionsMonth.month + 1),
+      );
+      await _reportService.generateWorkplaceMonthlySessionsReport(
+        workplaceName: widget.existing!.name,
+        month: _sessionsMonth,
+        sessions: sessions,
+      );
+    } on AdminServiceException catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.message);
+    } on ReportServiceException catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.message);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _error = AppStrings.t('common_something_wrong'));
+    } finally {
+      if (mounted) setState(() => _isGeneratingSessionsReport = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -278,7 +331,53 @@ class _WorkplaceFormScreenState extends State<WorkplaceFormScreen> {
                       ? AppStrings.t('workplace_form_deactivate_button')
                       : AppStrings.t('workplace_form_activate_button')),
             ),
+            const SizedBox(height: 24),
+            _buildSessionsReportCard(),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSessionsReportCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            AppStrings.t('workplace_form_sessions_report_section'),
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1,
+            ),
+          ),
+          const SizedBox(height: 4),
+          MonthSelector(
+            month: _sessionsMonth,
+            minMonth: _minReportMonth,
+            onChange: _isGeneratingSessionsReport ? null : _changeSessionsMonth,
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: _isGeneratingSessionsReport ? null : _downloadSessions,
+            icon: _isGeneratingSessionsReport
+                ? const SizedBox(
+                    height: 16,
+                    width: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                  )
+                : const Icon(Icons.picture_as_pdf_outlined, size: 18),
+            label: Text(_isGeneratingSessionsReport
+                ? AppStrings.t('admin_detail_generating')
+                : AppStrings.t('workplace_form_download_sessions_button')),
+          ),
         ],
       ),
     );

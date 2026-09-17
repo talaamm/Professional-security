@@ -8,6 +8,7 @@ import '../models/profile.dart';
 import '../models/unverified_session.dart';
 import '../models/work_session.dart';
 import '../models/workplace.dart';
+import '../models/workplace_monthly_session.dart';
 
 /// User-facing error with a safe, already-translated message.
 class AdminServiceException implements Exception {
@@ -258,9 +259,11 @@ class AdminService {
     }
   }
 
-  /// Updates a workplace's name/radius/type. [latitude]/[longitude] are
-  /// only included when the admin recalibrated at the current location -
-  /// omitting them leaves the stored coordinates untouched.
+  /// Updates a workplace's name/radius/type/location. [latitude]/
+  /// [longitude] are nullable only because updateWorkplace shares this
+  /// signature's shape with createWorkplace-style callers - the form
+  /// screen always has a location (stored or freshly chosen via
+  /// LocationPickerScreen) before it can submit at all.
   Future<void> updateWorkplace({
     required String id,
     required String name,
@@ -277,6 +280,30 @@ class AdminService {
         'latitude': ?latitude,
         'longitude': ?longitude,
       }).eq('id', id);
+    } on PostgrestException catch (e) {
+      throw AdminServiceException(e.message);
+    }
+  }
+
+  /// Every completed work session at [workplaceId] within
+  /// [monthStart, monthEndExclusive), oldest first - for any role
+  /// (employee, admin, or super admin), not just employees. Backs the
+  /// Edit Workplace screen's "Download All Sessions" button. See
+  /// db_files/dev-db/phase8-workplace-sessions-report.sql.
+  Future<List<WorkplaceMonthlySession>> fetchWorkplaceSessionsForMonth({
+    required String workplaceId,
+    required DateTime monthStart,
+    required DateTime monthEndExclusive,
+  }) async {
+    try {
+      final data = await _client.rpc('admin_workplace_sessions_for_month', params: {
+        'p_workplace_id': workplaceId,
+        'p_month_start': monthStart.toUtc().toIso8601String(),
+        'p_month_end_exclusive': monthEndExclusive.toUtc().toIso8601String(),
+      });
+      return (data as List)
+          .map((row) => WorkplaceMonthlySession.fromMap(row as Map<String, dynamic>))
+          .toList();
     } on PostgrestException catch (e) {
       throw AdminServiceException(e.message);
     }

@@ -274,6 +274,8 @@
   "workplace_form_selected_location": "Selected location",
   "workplace_form_choose_location_button": "Choose Location",
   "workplace_form_change_location_button": "Change Location",
+  "workplace_form_sessions_report_section": "SESSIONS REPORT",
+  "workplace_form_download_sessions_button": "Download All Sessions",
   "workplace_form_name_required": "Please enter a name for this workplace.",
   "workplace_form_location_required": "Please choose a location on the map before continuing.",
   "workplace_form_radius_too_large": "Radius is too large (max {max} m).",

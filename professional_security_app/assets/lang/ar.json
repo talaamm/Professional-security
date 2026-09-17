@@ -275,6 +275,8 @@
   "workplace_form_selected_location": "الموقع المحدَّد",
   "workplace_form_choose_location_button": "اختيار الموقع",
   "workplace_form_change_location_button": "تغيير الموقع",
+  "workplace_form_sessions_report_section": "تقرير الجلسات",
+  "workplace_form_download_sessions_button": "تنزيل جميع الجلسات",
   "workplace_form_name_required": "يرجى إدخال اسم لمكان العمل هذا.",
   "workplace_form_location_required": "يرجى اختيار موقع على الخريطة قبل المتابعة.",
   "workplace_form_radius_too_large": "النطاق كبير جدًا (الحد الأقصى {max} م).",

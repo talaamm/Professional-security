@@ -275,6 +275,8 @@
   "workplace_form_selected_location": "המיקום שנבחר",
   "workplace_form_choose_location_button": "בחירת מיקום",
   "workplace_form_change_location_button": "שינוי מיקום",
+  "workplace_form_sessions_report_section": "דוח משמרות",
+  "workplace_form_download_sessions_button": "הורדת כל המשמרות",
   "workplace_form_name_required": "אנא הזן שם למקום העבודה הזה.",
   "workplace_form_location_required": "אנא בחר מיקום על המפה לפני שתמשיך.",
   "workplace_form_radius_too_large": "הרדיוס גדול מדי (מקסימום {max} מ׳).",

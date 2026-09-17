@@ -6,6 +6,7 @@ import 'package:printing/printing.dart';
 import '../models/monthly_active_employee.dart';
 import '../models/profile.dart';
 import '../models/work_session.dart';
+import '../models/workplace_monthly_session.dart';
 import 'arabic_shaping.dart';
 
 class ReportServiceException implements Exception {
@@ -222,6 +223,100 @@ class ReportService {
     } catch (_) {
       throw ReportServiceException('Could not generate the report. Please try again.');
     }
+  }
+
+  /// Builds a PDF of every completed work session at [workplaceName] in
+  /// [month] - one row per session, any role (employee, admin, or super
+  /// admin) - and hands it to the device's native share sheet, same as
+  /// generateMonthlyReport() above. Backs the Edit Workplace screen's
+  /// "Download All Sessions" button.
+  Future<void> generateWorkplaceMonthlySessionsReport({
+    required String workplaceName,
+    required DateTime month,
+    required List<WorkplaceMonthlySession> sessions,
+  }) async {
+    try {
+      final fallbackFonts = await _loadFallbackFonts();
+      final doc = pw.Document(theme: pw.ThemeData.withFont(fontFallback: fallbackFonts));
+      final monthLabel = '${_monthNames[month.month - 1]} ${month.year}';
+
+      final totalDuration = sessions.fold<Duration>(
+        Duration.zero,
+        (sum, session) => sum + session.duration,
+      );
+
+      doc.addPage(
+        pw.MultiPage(
+          build: (context) => [
+            pw.Text(
+              'Work Sessions Report',
+              style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
+            ),
+            pw.SizedBox(height: 12),
+            // Two separate Text widgets, not one mixed string - same
+            // reason as generateMonthlyReport()'s employee-name row above.
+            pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text('Workplace: '),
+                _bidiText(workplaceName),
+              ],
+            ),
+            pw.Text('Month: $monthLabel'),
+            pw.Text('Generated: ${_formatDateTime(DateTime.now())}'),
+            pw.SizedBox(height: 20),
+            if (sessions.isEmpty)
+              pw.Text('No work sessions recorded at this workplace this month.')
+            else ...[
+              pw.TableHelper.fromTextArray(
+                headers: ['Date', 'Employee', 'Employee ID', 'Start', 'End', 'Duration'],
+                data: [
+                  for (final session in sessions)
+                    [
+                      _formatDate(session.startedAt),
+                      session.employeeName,
+                      session.employeeId,
+                      _formatTime(session.startedAt),
+                      _formatTime(session.endedAt),
+                      _formatDurationValue(session.duration),
+                    ],
+                ],
+                headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                cellAlignment: pw.Alignment.centerLeft,
+                headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
+                cellBuilder: (index, data, rowNum) => _bidiText(data.toString()),
+              ),
+              pw.SizedBox(height: 16),
+              pw.Text(
+                'Total sessions: ${sessions.length}    '
+                'Total duration: ${_formatDurationValue(totalDuration)}',
+                style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+              ),
+            ],
+          ],
+        ),
+      );
+
+      final bytes = await doc.save();
+      final fileName = 'workplace-sessions-${_sanitizeForFileName(workplaceName)}-'
+          '${month.year}-${month.month.toString().padLeft(2, '0')}.pdf';
+      await Printing.sharePdf(bytes: bytes, filename: fileName);
+    } catch (_) {
+      throw ReportServiceException('Could not generate the report. Please try again.');
+    }
+  }
+
+  /// Keeps a workplace name's Latin letters/digits for the PDF filename
+  /// and drops everything else (spaces, punctuation, Arabic/Hebrew script,
+  /// which most OS share-sheet targets don't render well in a file name) -
+  /// falls back to a fixed label if nothing recognizable is left.
+  String _sanitizeForFileName(String name) {
+    final cleaned = name
+        .replaceAll(RegExp(r'[^A-Za-z0-9]+'), '-')
+        .replaceAll(RegExp(r'-+'), '-')
+        .replaceAll(RegExp(r'^-|-$'), '')
+        .toLowerCase();
+    return cleaned.isEmpty ? 'workplace' : cleaned;
   }
 
   String _formatDate(DateTime dt) {
