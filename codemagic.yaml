@@ -5,6 +5,8 @@ workflows:
     working_directory: professional_security_app
     environment:
       flutter: stable
+      android_signing:
+        - professional_security
       groups:
         - Database credentials # defines SUPABASE_URL, SUPABASE_ANON_KEY
     cache:
