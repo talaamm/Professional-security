@@ -3,6 +3,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
+import '../models/monthly_active_employee.dart';
 import '../models/profile.dart';
 import '../models/work_session.dart';
 import 'arabic_shaping.dart';
@@ -160,6 +161,63 @@ class ReportService {
       final bytes = await doc.save();
       final fileName = 'work-report-${employee.employeeId}-'
           '${month.year}-${month.month.toString().padLeft(2, '0')}.pdf';
+      await Printing.sharePdf(bytes: bytes, filename: fileName);
+    } catch (_) {
+      throw ReportServiceException('Could not generate the report. Please try again.');
+    }
+  }
+
+  /// Builds a PDF of every employee who completed >=1 work session in
+  /// [month] (name, employee ID, session count) and hands it to the
+  /// device's native share sheet, same as generateMonthlyReport() above -
+  /// backs the Employees tab's "Download List" button.
+  Future<void> generateMonthlyActiveEmployeesReport({
+    required DateTime month,
+    required List<MonthlyActiveEmployee> employees,
+  }) async {
+    try {
+      final fallbackFonts = await _loadFallbackFonts();
+      final doc = pw.Document(theme: pw.ThemeData.withFont(fontFallback: fallbackFonts));
+      final monthLabel = '${_monthNames[month.month - 1]} ${month.year}';
+
+      doc.addPage(
+        pw.MultiPage(
+          build: (context) => [
+            pw.Text(
+              'Employees Active This Month',
+              style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
+            ),
+            pw.SizedBox(height: 12),
+            pw.Text('Month: $monthLabel'),
+            pw.Text('Generated: ${_formatDateTime(DateTime.now())}'),
+            pw.SizedBox(height: 20),
+            if (employees.isEmpty)
+              pw.Text('No employees completed a work session this month.')
+            else ...[
+              pw.TableHelper.fromTextArray(
+                headers: ['Name', 'Employee ID', 'Sessions This Month'],
+                data: [
+                  for (final employee in employees)
+                    [employee.fullName, employee.employeeId, '${employee.sessionCount}'],
+                ],
+                headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                cellAlignment: pw.Alignment.centerLeft,
+                headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
+                cellBuilder: (index, data, rowNum) => _bidiText(data.toString()),
+              ),
+              pw.SizedBox(height: 16),
+              pw.Text(
+                'Total employees: ${employees.length}',
+                style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+              ),
+            ],
+          ],
+        ),
+      );
+
+      final bytes = await doc.save();
+      final fileName = 'employees-active-${month.year}-'
+          '${month.month.toString().padLeft(2, '0')}.pdf';
       await Printing.sharePdf(bytes: bytes, filename: fileName);
     } catch (_) {
       throw ReportServiceException('Could not generate the report. Please try again.');

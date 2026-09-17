@@ -178,6 +178,12 @@
   "admin_employees_administrators_section": "מנהלי מערכת",
   "admin_employees_no_admins": "אין חשבונות מנהלים.",
   "admin_employees_could_not_load_admins": "לא ניתן היה לטעון את המנהלים.",
+  "admin_employees_monthly_section": "עובדי החודש",
+  "admin_employees_monthly_could_not_load": "לא ניתן היה לטעון את עובדי החודש.",
+  "admin_employees_monthly_empty": "עדיין אין עובדים שהשלימו משמרת החודש.",
+  "admin_employees_monthly_load_more": "טען עוד",
+  "admin_employees_monthly_download_button": "הורדת רשימה",
+  "admin_employees_monthly_sessions_count": "{count} משמרות",
 
   "admin_register_employee_title": "רישום עובד חדש",
   "admin_register_employee_heading": "עובד חדש",

@@ -178,6 +178,12 @@
   "admin_employees_administrators_section": "المسؤولون",
   "admin_employees_no_admins": "لا توجد حسابات مسؤولين.",
   "admin_employees_could_not_load_admins": "تعذر تحميل المسؤولين.",
+  "admin_employees_monthly_section": "موظفو هذا الشهر",
+  "admin_employees_monthly_could_not_load": "تعذر تحميل موظفي هذا الشهر.",
+  "admin_employees_monthly_empty": "لا يوجد موظفون أكملوا جلسة عمل هذا الشهر بعد.",
+  "admin_employees_monthly_load_more": "عرض المزيد",
+  "admin_employees_monthly_download_button": "تنزيل القائمة",
+  "admin_employees_monthly_sessions_count": "{count} جلسات",
 
   "admin_register_employee_title": "تسجيل موظف جديد",
   "admin_register_employee_heading": "موظف جديد",

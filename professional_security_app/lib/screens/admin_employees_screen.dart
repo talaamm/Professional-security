@@ -4,14 +4,18 @@ import 'package:flutter/material.dart';
 
 import '../config/theme.dart';
 import '../models/issue_report.dart';
+import '../models/monthly_active_employee.dart';
 import '../models/password_reset_request.dart';
 import '../models/profile.dart';
 import '../services/admin_service.dart';
 import '../services/app_strings.dart';
+import '../services/report_service.dart';
 import '../widgets/dashboard_section.dart';
 import '../widgets/error_banner.dart';
 import 'admin_employee_detail_screen.dart';
 import 'admin_register_employee_screen.dart';
+
+const int _monthlyPageSize = 5;
 
 /// Employees tab: for a super admin, administrator accounts at the very
 /// top (see _loadAdmins) - super admins have the same control over admin
@@ -34,6 +38,7 @@ class AdminEmployeesScreen extends StatefulWidget {
 
 class _AdminEmployeesScreenState extends State<AdminEmployeesScreen> {
   final _adminService = AdminService();
+  final _reportService = ReportService();
   final _searchController = TextEditingController();
   Timer? _debounce;
 
@@ -53,6 +58,14 @@ class _AdminEmployeesScreenState extends State<AdminEmployeesScreen> {
   List<Profile> _admins = [];
   bool _isLoadingAdmins = true;
   String? _adminsError;
+
+  List<MonthlyActiveEmployee> _monthlyEmployees = [];
+  bool _monthlyLoaded = false;
+  bool _isLoadingMonthly = false;
+  bool _isLoadingMoreMonthly = false;
+  bool _isDownloadingMonthly = false;
+  String? _monthlyError;
+  bool _monthlyHasMore = true;
 
   bool get _isSuperAdmin => widget.profile.role == UserRole.superAdmin;
 
@@ -166,6 +179,99 @@ class _AdminEmployeesScreenState extends State<AdminEmployeesScreen> {
     }
   }
 
+  /// Lazily triggered the first time the "Employees of This Month" section
+  /// is expanded - never queried just because the tab loaded.
+  void _onMonthlyExpansionChanged(bool expanded) {
+    if (expanded && !_monthlyLoaded && !_isLoadingMonthly) {
+      _fetchMonthlyEmployees(_monthlyPageSize);
+    }
+  }
+
+  Future<void> _fetchMonthlyEmployees(int limit) async {
+    setState(() {
+      _isLoadingMonthly = true;
+      _monthlyError = null;
+    });
+
+    try {
+      final employees = await _adminService.fetchMonthlyActiveEmployees(limit: limit);
+      if (!mounted) return;
+      setState(() {
+        _monthlyEmployees = employees;
+        _monthlyHasMore = employees.length == limit;
+        _monthlyLoaded = true;
+      });
+    } on AdminServiceException catch (e) {
+      if (!mounted) return;
+      setState(() => _monthlyError = e.message);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _monthlyError = AppStrings.t('admin_employees_monthly_could_not_load'));
+    } finally {
+      if (mounted) setState(() => _isLoadingMonthly = false);
+    }
+  }
+
+  /// Re-fetches the same number of rows already on screen - a no-op if the
+  /// section was never expanded, so pull-to-refresh doesn't query it either.
+  Future<void> _refreshMonthlyEmployeesIfLoaded() {
+    if (!_monthlyLoaded) return Future.value();
+    final limit =
+        _monthlyEmployees.length < _monthlyPageSize ? _monthlyPageSize : _monthlyEmployees.length;
+    return _fetchMonthlyEmployees(limit);
+  }
+
+  Future<void> _loadMoreMonthlyEmployees() async {
+    setState(() {
+      _isLoadingMoreMonthly = true;
+      _monthlyError = null;
+    });
+
+    try {
+      final more = await _adminService.fetchMonthlyActiveEmployees(
+        limit: _monthlyPageSize,
+        offset: _monthlyEmployees.length,
+      );
+      if (!mounted) return;
+      setState(() {
+        _monthlyEmployees = [..._monthlyEmployees, ...more];
+        _monthlyHasMore = more.length == _monthlyPageSize;
+      });
+    } on AdminServiceException catch (e) {
+      if (!mounted) return;
+      setState(() => _monthlyError = e.message);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _monthlyError = AppStrings.t('admin_employees_monthly_could_not_load'));
+    } finally {
+      if (mounted) setState(() => _isLoadingMoreMonthly = false);
+    }
+  }
+
+  Future<void> _downloadMonthlyList() async {
+    setState(() => _isDownloadingMonthly = true);
+    try {
+      final allEmployees = await _adminService.fetchMonthlyActiveEmployees();
+      await _reportService.generateMonthlyActiveEmployeesReport(
+        month: DateTime.now(),
+        employees: allEmployees,
+      );
+    } on AdminServiceException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } on ReportServiceException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppStrings.t('common_something_wrong'))),
+      );
+    } finally {
+      if (mounted) setState(() => _isDownloadingMonthly = false);
+    }
+  }
+
   Future<void> _openAdmin(Profile admin) async {
     await Navigator.of(context).push<bool>(
       MaterialPageRoute(
@@ -255,6 +361,7 @@ class _AdminEmployeesScreenState extends State<AdminEmployeesScreen> {
       // search - reload it too so it appears without needing to leave
       // and reopen this tab.
       if (_isSuperAdmin) _loadAdmins(),
+      _refreshMonthlyEmployeesIfLoaded(),
     ]);
     if (changed == true) {
       await _search(_searchController.text);
@@ -273,6 +380,7 @@ class _AdminEmployeesScreenState extends State<AdminEmployeesScreen> {
           _loadIssues(),
           _loadResetRequests(),
           if (_isSuperAdmin) _loadAdmins(),
+          _refreshMonthlyEmployeesIfLoaded(),
         ]),
         child: (_isLoadingIssues || _isLoadingResetRequests || (_isSuperAdmin && _isLoadingAdmins))
             ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
@@ -336,6 +444,8 @@ class _AdminEmployeesScreenState extends State<AdminEmployeesScreen> {
                             ))
                         .toList(),
                   ),
+                  const SizedBox(height: 16),
+                  _buildMonthlySection(),
                   const SizedBox(height: 24),
                   TextField(
                     controller: _searchController,
@@ -354,6 +464,102 @@ class _AdminEmployeesScreenState extends State<AdminEmployeesScreen> {
                   _buildResults(),
                 ],
               ),
+      ),
+    );
+  }
+
+  Widget _buildMonthlySection() {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          initiallyExpanded: false,
+          iconColor: AppColors.primary,
+          collapsedIconColor: AppColors.textSecondary,
+          onExpansionChanged: _onMonthlyExpansionChanged,
+          title: Text(
+            AppStrings.t('admin_employees_monthly_section'),
+            style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
+          ),
+          children: [_buildMonthlyContent()],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMonthlyContent() {
+    if (_isLoadingMonthly) {
+      return const Padding(
+        padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      );
+    }
+
+    if (!_monthlyLoaded) {
+      // Only reached if the initial fetch failed outright (see
+      // _fetchMonthlyEmployees's catch branches) - _onMonthlyExpansionChanged
+      // already triggered it, so this isn't a real "not loaded yet" state.
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: ErrorBanner(message: _monthlyError ?? AppStrings.t('common_something_wrong')),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          OutlinedButton.icon(
+            onPressed: _isDownloadingMonthly ? null : _downloadMonthlyList,
+            icon: _isDownloadingMonthly
+                ? const SizedBox(
+                    height: 16,
+                    width: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                  )
+                : const Icon(Icons.download_outlined, size: 18),
+            label: Text(AppStrings.t('admin_employees_monthly_download_button')),
+          ),
+          const SizedBox(height: 12),
+          if (_monthlyError != null) ...[
+            ErrorBanner(message: _monthlyError!),
+            const SizedBox(height: 12),
+          ],
+          if (_monthlyEmployees.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                AppStrings.t('admin_employees_monthly_empty'),
+                style: const TextStyle(color: AppColors.textSecondary),
+              ),
+            )
+          else
+            for (final employee in _monthlyEmployees) ...[
+              _MonthlyEmployeeTile(
+                employee: employee,
+                onTap: () => _openEmployeeById(employee.employeeId),
+              ),
+            ],
+          if (_monthlyHasMore) ...[
+            const SizedBox(height: 8),
+            OutlinedButton(
+              onPressed: _isLoadingMoreMonthly ? null : _loadMoreMonthlyEmployees,
+              child: _isLoadingMoreMonthly
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                    )
+                  : Text(AppStrings.t('admin_employees_monthly_load_more')),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -451,6 +657,32 @@ class _IssueTile extends StatelessWidget {
         style: OutlinedButton.styleFrom(minimumSize: const Size(64, 36)),
         onPressed: onDone,
         child: Text(AppStrings.t('common_done')),
+      ),
+    );
+  }
+}
+
+class _MonthlyEmployeeTile extends StatelessWidget {
+  final MonthlyActiveEmployee employee;
+  final VoidCallback onTap;
+
+  const _MonthlyEmployeeTile({required this.employee, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      onTap: onTap,
+      title: Text(
+        employee.fullName,
+        style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+      ),
+      subtitle: Text(
+        AppStrings.t('admin_employees_id_prefix', {'id': employee.employeeId}),
+        style: const TextStyle(color: AppColors.textSecondary),
+      ),
+      trailing: Text(
+        AppStrings.t('admin_employees_monthly_sessions_count', {'count': '${employee.sessionCount}'}),
+        style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
       ),
     );
   }

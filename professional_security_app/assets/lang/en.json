@@ -177,6 +177,12 @@
   "admin_employees_administrators_section": "Administrators",
   "admin_employees_no_admins": "No administrator accounts.",
   "admin_employees_could_not_load_admins": "Could not load administrators.",
+  "admin_employees_monthly_section": "Employees of This Month",
+  "admin_employees_monthly_could_not_load": "Could not load this month's employees.",
+  "admin_employees_monthly_empty": "No employees have completed a work session this month yet.",
+  "admin_employees_monthly_load_more": "Load More",
+  "admin_employees_monthly_download_button": "Download List",
+  "admin_employees_monthly_sessions_count": "{count} sessions",
 
   "admin_register_employee_title": "Register New Employee",
   "admin_register_employee_heading": "New Employee",

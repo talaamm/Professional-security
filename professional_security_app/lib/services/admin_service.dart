@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/active_employee_session.dart';
 import '../models/issue_report.dart';
+import '../models/monthly_active_employee.dart';
 import '../models/password_reset_request.dart';
 import '../models/profile.dart';
 import '../models/unverified_session.dart';
@@ -141,6 +142,29 @@ class AdminService {
           .order('started_at');
       return (data as List)
           .map((row) => WorkSession.fromMap(row as Map<String, dynamic>))
+          .toList();
+    } on PostgrestException catch (e) {
+      throw AdminServiceException(e.message);
+    }
+  }
+
+  /// Employees (role = 'employee') with >=1 completed work session in the
+  /// current calendar month, alphabetical by name, each with their session
+  /// count that month. [limit] left null returns every matching employee
+  /// (for the "Download List" export); pass it with [offset] to page the
+  /// on-screen list. "This month" is computed server-side - see
+  /// db_files/dev-db/phase8-monthly-active-employees.sql.
+  Future<List<MonthlyActiveEmployee>> fetchMonthlyActiveEmployees({
+    int? limit,
+    int offset = 0,
+  }) async {
+    try {
+      final data = await _client.rpc('admin_monthly_active_employees', params: {
+        'p_limit': limit,
+        'p_offset': offset,
+      });
+      return (data as List)
+          .map((row) => MonthlyActiveEmployee.fromMap(row as Map<String, dynamic>))
           .toList();
     } on PostgrestException catch (e) {
       throw AdminServiceException(e.message);
