@@ -1225,3 +1225,46 @@ Files changed:
 Verification: flutter analyze — no issues. flutter test — same pre-existing unrelated template-test failure as before. Couldn't exercise the RPC live (not deployed yet) — please run the SQL file, then test: open a workplace with sessions this year, pick a month, tap Download All Sessions.
 
 ✻ Crunched for 13m 45s · done 12:58 PM
+
+---
+
+What I found (before changing anything)
+
+The project had already been largely prepared for release in earlier work:
+- App name: AndroidManifest.xml already had android:label="Professional Security" with android:name="${applicationName}" intact.
+- App icon: flutter_launcher_icons was already configured in pubspec.yaml pointing to assets/images/logo.png, and the generated mipmap-*/drawable-*/adaptive-icon XML files were already committed and match the logo (shield/wings/sword mark).
+- Signing: android/app/build.gradle.kts already uses a release signingConfigs block reading CM_KEYSTORE_PATH/CM_KEYSTORE_PASSWORD/CM_KEY_ALIAS/CM_KEY_PASSWORD from env — no debug signing anywhere.
+- codemagic.yaml: android-workflow already references android_signing: - professional_security and the Database credentials group for Supabase env vars — untouched, still correct.
+- Version: only this was stale — pubspec.yaml still said 1.1.0+2.
+
+Change made
+
+professional_security_app/pubspec.yaml — bumped version: 1.1.0+2 → version: 1.1.1+3 (this is the only file I touched). Verified with flutter pub get that the file is still valid.
+
+Verification results
+
+┌──────────────────────────┬────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│           Item           │                                                       Status                                                       │
+├──────────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ App name                 │ ✅ "Professional Security" (unchanged, already correct)                                                            │
+├──────────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ Application ID           │ ✅ com.halabi.professionalsecurity (unchanged, verified in namespace/applicationId)                                │
+├──────────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ Version                  │ ✅ 1.1.1+3 → versionName 1.1.1, versionCode 3                                                                      │
+├──────────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ Launcher icon            │ ✅ Configured, sourced from assets/images/logo.png (existing company logo), already generated for all densities    │
+├──────────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ Release signing          │ ✅ Still Codemagic keystore-based, untouched                                                                       │
+├──────────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ Debug signing in release │ ✅ None present                                                                                                    │
+├──────────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ Supabase config          │ ✅ Untouched (codemagic.yaml env.dart generation, .gitignore entry for lib/config/env.dart)                        │
+├──────────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ iOS config               │ ✅ Untouched; uses $(FLUTTER_BUILD_NAME)/$(FLUTTER_BUILD_NUMBER) placeholders so it picks up 1.1.1/3 automatically │
+└──────────────────────────┴────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+One note, not a code change: the launcher-icon foreground has the "Professional security" wordmark baked into the same image used for the adaptive-icon foreground, with a 16% inset. On circular/squircle adaptive-icon masks (most modern launchers), the bottom text and the outer wingtips sit right at the edge of Android's ~66%-safe zone and may get slightly clipped on some devices. This is pre-existing, already-committed configuration, not something I introduced — I left it as-is since you asked me not to make unnecessary changes, but flagging it in case you want a foreground-only asset (mark, no text, more padding) for a cleaner adaptive icon later.
+
+Android release is ready for Codemagic — signing, applicationId, Supabase env injection, and version are all consistent; only the version bump was needed.
+
+✻ Sautéed for 4m 32s · done 4:29 PM
