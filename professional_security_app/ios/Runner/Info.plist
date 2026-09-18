@@ -8,6 +8,11 @@
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
 	<string>Professional Security App</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Professional Security uses your location during active work sessions to support attendance and shift management.</string>
+
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Professional Security uses your location during active work sessions to record your work location and support attendance and shift management.</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
