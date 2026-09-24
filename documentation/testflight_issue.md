@@ -1,6 +1,6 @@
 ## 📋 Issue Summary: App Store Connect TestFlight 422 Contract Lock## 1. Core Problem & Error Messages
 
-* CI/CD Error (Codemagic): During the deployment phase, the pipeline crashes when calling Apple's API (POST https://apple.com) returning the error: 422: Beta contract is missing for the app. - Beta Contract is missing.
+* CI/CD Error (Codemagic): During the deployment phase, the pipeline crashes when calling Apple's API (POST <https://apple.com>) returning the error: 422: Beta contract is missing for the app. - Beta Contract is missing.
 * Device / TestFlight App Error: On the iPhone TestFlight app, attempting to update or install the app results in: "The requested app is not available or doesn't exist."
 * App Store Connect Web Portal Error: Attempting to save Test Information (Feedback Email, Beta App Description) or trying to add an External Testing group manually on the website results in a red banner error: "There was an error processing your request. Please try again later."
 
@@ -18,14 +18,32 @@
 * Current Status: Both the Free Apps Agreement and Paid Apps Agreement are now 100% Active and green on the dashboard. The U.S. Tax Info and Bank Details have been completely filled out and saved (since 29 hours now).
 
 ## 4. Troubleshooting Steps Already Taken (That Failed)
+
 To bypass the cache and state synchronization errors, the following steps were executed in exact order, but the account remains completely locked:
 
    1. Manual Export Compliance: Manually bypassed missing export compliance on the web portal by selecting "None of the algorithms mentioned above".
    2. Build Increments: Incremented build numbers via the .yaml config file from build 6 to build 7 and build 8 to clear cached corrupted binaries.
    3. App Store Review Triggers: Submitted the app for full production App Store Review (Prepare for Submission), then cancelled/Developer Rejected it to see if it would force an account-level TestFlight unfreeze.
-   4. Tester Profile Resets: Completely deleted testing groups and individual tester emails (including tala.abualamm@icloud.com), then recreated them. The portal shows the testers as "Accepted" but still reads "No Builds Available" next to their names, despite the builds being green and marked as "Testing".
+   4. Tester Profile Resets: Completely deleted testing groups and individual tester emails (including <tala.abualamm@icloud.com>), then recreated them. The portal shows the testers as "Accepted" but still reads "No Builds Available" next to their names, despite the builds being green and marked as "Testing".
    5. Local Device Cache: Deleted and reinstalled the TestFlight app on the iPhone, toggled network profiles, and forced-closed the application switcher.
    6. Codemagic Workaround: Changed the configuration submit_to_testflight: true to false in codemagic.yaml. This allowed the Codemagic CI/CD build to complete with a SUCCESS (Green Checkmark) status by skipping the TestFlight API trigger, confirming the code and compiler are perfect. However, manual deployment on the web app still errors out.
 
 ## 5. Current State of the System
+
 The web portal shows active agreements, and it successfully shows the builds as processed and "Testing." However, the underlying Apple API database still thinks the backend "Beta Contract" does not exist, entirely freezing both internal/external app distribution and throwing 422 errors. Apple Developer Support has ignored four consecutive support tickets over the past 8 days.
+
+---
+Apple Support reply earlier before doing all that (havent done anything regard it):
+Hello,
+
+We noticed one or more issues with a recent delivery for the following app:
+
+Professional Security
+App Apple ID 6810784116
+Version 1.1.2
+Build 4
+Although delivery was successful, you may want to correct the following issues in your next delivery. Once you've corrected the issues, upload a new binary to App Store Connect.
+
+ITMS-90683: Missing purpose string in Info.plist - Your app’s code references one or more APIs that access sensitive user data, or the app has one or more entitlements that permit such access. The Info.plist file for the “Runner.app” bundle should contain a NSLocationAlwaysAndWhenInUseUsageDescription key with a user-facing purpose string explaining clearly and completely why your app needs the data. If you’re using external libraries or SDKs, they may reference APIs that require a purpose string. While your app might not use these APIs, a purpose string is still required. For details, visit: <https://developer.apple.com/documentation/uikit/protecting_the_user_s_privacy/requesting_access_to_protected_resources>.
+
+Apple Developer Relations
